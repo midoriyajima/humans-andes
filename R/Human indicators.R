@@ -184,22 +184,21 @@ Datasheet.ind.sum$Sum_indirect<-DF.Indirect.Sum$SUM
 
 # Absolute frequency of direct indicators through time per site - NEW
 Datasheet.ind.sum %>% 
-  ggplot(aes(Bin_num, Sum_direct)) +
+  ggplot(aes(x=reorder(Bin,-Bin_num), y=SUM)) +  #(Midori) Bin column is charachter, in this way bars are displayed and ordered from old to recent (otherwise they would be alphabetically ordered)
   geom_bar(stat = "identity",width = 0.5) +
   facet_wrap(~`Site Name`) +
   theme_bw() +
   theme(axis.text.x = element_text(angle = 90, hjust=1)) +
-  geom_text(aes(label=Sum_direct), vjust=-0.3, size=3) +
+  geom_text(aes(label=SUM), vjust=-0.3, size=3) +
   ylab("Absolute frequency")+
   xlab("Time bins")
 
 
 
 ## Absolute frequency of indirect indicators through time per site
-# The numbers in the plot look messy. Change to bars?
 # Also, only the df_pres was made to only show human indicators that were counted
 Datasheet.ind.sum %>% 
-  ggplot(aes(Bin_num, Sum_indirect)) +
+  ggplot(aes(x=reorder(Bin,-Bin_num), y=Sum_indirect)) + 
   geom_bar(stat = "identity",width = 0.5)+
   facet_wrap(~`Site Name`)+
   theme_bw()+
@@ -210,7 +209,7 @@ Datasheet.ind.sum %>%
   
 ## for a single site
 Datasheet.ind.sum %>% filter(`Site Name`=="Pantano de Genagra")%>%
-  ggplot(aes(x = Bin_num, y = Sum_indirect))+
+  ggplot(aes(x = reorder(Bin,-Bin_num), y = Sum_indirect))+
   geom_bar(stat = "identity",width = 0.9)+
   theme_bw()+
   theme(axis.text.x = element_text(angle = 90, hjust=1))+
@@ -220,7 +219,7 @@ Datasheet.ind.sum %>% filter(`Site Name`=="Pantano de Genagra")%>%
   ggtitle("Pantano de Genagra")
 
 ## to have a single chart for direct and indirect indicators
-DF.Indirect.Sum <- DF.Indirect.Sum% >% 
+DF.Indirect.Sum <- DF.Indirect.Sum %>% 
   mutate(IND=rep("Indirect"))
 
 DF.Direct.Sum <- DF.Direct.Sum %>% 
@@ -229,7 +228,7 @@ Datasheet.D.full<-bind_cols(Datasheet,DF.Direct.Sum)
 Datasheet.I.full<-bind_cols(Datasheet,DF.Indirect.Sum)
 Datasheet.full<-rbind(Datasheet.D.full,Datasheet.I.full)
   
-ggplot(data=Datasheet.full,aes(x = bin_num),y=SUM,fill=IND)+
+ggplot(data=Datasheet.full,aes(x = reorder(Bin,-Bin_num),y=SUM,fill=IND))+
   geom_bar(position="dodge",stat = "identity",width = 0.5)+
   facet_wrap(~`Site Name`)+
   theme_bw()+
@@ -241,7 +240,7 @@ ggplot(data=Datasheet.full,aes(x = bin_num),y=SUM,fill=IND)+
 ##for a single site
 #dodged bars
 Datasheet.full%>%filter(`Site Name`=="Pantano de Genagra")%>%
-  ggplot(aes(x=reorder(`Bin`,-`Bin number`),y=SUM,fill=IND))+
+  ggplot(aes(x=reorder(`Bin`,-Bin_num),y=SUM,fill=IND))+
   geom_bar(stat = "identity",width = 0.9, position = "dodge")+
   geom_text(aes(label=SUM), vjust=-0.3, size=3, position = "dodge")+
   theme_bw()+
@@ -252,7 +251,7 @@ ggtitle("Pantano de Genagra")
 
 #stacked bars
 Datasheet.full%>%filter(`Site Name`=="Pantano de Genagra")%>%
-  ggplot(aes(x=reorder(`Bin`,-`Bin number`),y=SUM,fill=IND))+
+  ggplot(aes(x=reorder(`Bin`,-Bin_num),y=SUM,fill=IND))+
   geom_bar(stat = "identity",width = 0.9, position = "stack")+
   geom_text(aes(label=SUM), vjust=0.5, size=3, position = "stack")+
   theme_bw()+
@@ -264,7 +263,7 @@ Datasheet.full%>%filter(`Site Name`=="Pantano de Genagra")%>%
 #stacked bars with the same height
 Datasheet.full %>% 
   filter(`Site Name`=="Pantano de Genagra") %>%
-  ggplot(aes(x=reorder(`Bin`,-`Bin number`),y=SUM,fill=IND))+
+  ggplot(aes(x=reorder(`Bin`,-Bin_num),y=SUM,fill=IND))+
   geom_bar(stat = "identity",width = 0.9, position = "fill")+
   geom_text(aes(label=SUM), vjust=0.5, size=3, position = "fill")+
   theme_bw()+
