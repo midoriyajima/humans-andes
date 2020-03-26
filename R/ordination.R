@@ -19,7 +19,7 @@ Datasheet <- read_excel("data/Datasheet.xlsx")
 # selecte only indicator data and tunr ten into numbers
 # and replace all missing values with zeros ( composional data cannot have NA)
 cca.data <-  Datasheet %>% 
-  select(-c("LAPD_ID\r\n","Site Name","Bin","Reference (short)","Bin number","Bin_num")) %>%
+  select(-c("LAPD_ID","Site Name","Bin","Reference (short)","Bin number","Bin_num","Country","Latitude","Longitude")) %>%
   apply(., 2, FUN= function(x){
     x[x=="NA"] <-0;
     y<- as.numeric(x);

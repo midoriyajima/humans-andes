@@ -59,7 +59,30 @@ ToTable<-Datasheet%>%
   distinct(`Site Name`,Country,Latitude,Longitude,`Reference (short)`)
 #order df according to Country
 ToTable<-ToTable[order(ToTable$Country),]  
-#Table!
+#fancy Table (not necessary)
 Table_01<-formattable(ToTable)
+#export toTable in excel, new version of Datasheet
+library(writexl)
+write_xlsx(ToTable,"Table_01.xlsx")
+write_xlsx(Datasheet,"Datasheet.xlsx")
 
-#TODO: export table, create map, export new Datasheet
+####MAP---------------------------------------------
+library(OpenStreetMap)
+library(ggmap)
+
+range(Sites$Longitude)
+range(Sites$Latitude)
+Sites<-Datasheet%>%distinct(`Site Name`,Latitude,Longitude)
+
+Andes<-get_stamenmap(bbox = c(left=-80,
+                              bottom=-5,
+                              right=-69, 
+                              top=10),
+                     zoom=5,maptype = "terrain-background")
+AndesMap<-ggmap(Andes)+
+  geom_point(data=Sites, aes(x= Longitude, y=Latitude))
+
+AndesMap+
+  geom_text(data = Sites, aes(x = Longitude + .001, y = Latitude, label=`Site Name`), size=1.8, hjust=-0.1, vjust=0)
+  
+  
