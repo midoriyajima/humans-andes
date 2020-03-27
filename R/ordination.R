@@ -11,10 +11,8 @@ library(vegan)
 #install.packages("ggcorrplot")
 library(ggcorrplot)
 
-
-
 # Load data
-Datasheet <- read_excel("data/Datasheet.xlsx")
+Datasheet <- read_excel("data/Datasheet2.xlsx")
 
 # selecte only indicator data and tunr ten into numbers
 # and replace all missing values with zeros ( composional data cannot have NA)
@@ -219,7 +217,6 @@ row.names(gow.dis) <- temmp$`Site Name`
 ggcorrplot(gow.dis)
 
 
-
 # --------------------------------------------------------------- 
 #
 #                   PLOT ORDINAtION (WIP)
@@ -265,12 +262,27 @@ rda.biplot <- rda.plot +
             color="red", size=4)
 rda.biplot
 
+# --------------------------------------------------------------- 
+#
+#               SITE CLUSTERING BASED ON THE GEO
+#
+# ---------------------------------------------------------------
+
+install.packages("factoextra")
+install.packages("NbClust")
+library(factoextra)
+library(NbClust)
 
 
 
 
+# set the best number of clusters based on the geo (max 5) [we should include also the elevation!!!]
+cluster.res <- fviz_nbclust(Sites[,c(2:3)], kmeans, nstart = 25,  method = "gap_stat", nboot = 500, k.max = 5)
+cluster.res  # the maximum is the best (5)
+
+clusters <- kmeans(Sites[,c(2,3)], 5)
+Sites$cluster <- as.factor(clusters$cluster)
 
 
-
-
-
+ggmap(Andes)+
+  geom_point(data=Sites, aes(x= Longitude, y=Latitude, color=cluster))
