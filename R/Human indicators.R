@@ -45,7 +45,7 @@ ggplot(Datasheet)+
 
 # Step 1: Filter indicators from dataset
 Datasheet.indicators <- Datasheet %>%
- select(.,-c("LAPD_ID\r\n","Site Name",
+ select(.,-c("LAPD_ID","Site Name",
 "Reference (short)","Bin number","Bin", "Bin_num" ))
 
 str(Datasheet.indicators) # take a look at the dataframe
@@ -89,6 +89,7 @@ DF.indicators.SUM.no0 %>%
   theme(axis.text.x  = element_text(angle = 70, hjust=1)) +
   xlab("Human Indicators") + ylab("Count") +
   ggtitle("Number of times human indicators are counted in total") 
+
 
 
 
@@ -272,4 +273,25 @@ Datasheet.full %>%
   xlab("Time bins")+
   ggtitle("Pantano de Genagra")
 
+#### PLAYING WITH DATASHEET 
 
+#new shorter datasheet
+#select record spannind last 12000 yr
+Datasheet$Bin_num<-as.numeric(Datasheet$Bin_num)
+Datasheet_shaved<-Datasheet%>%filter(Bin_num<12500)
+
+#select only indicators actually found
+library(writexl)
+
+DF.zeros<-(DF.indicators.SUM%>%filter(IN==0))
+Todrop<-as.vector(DF.zeros$IN.name)
+Datasheet_shaved<-Datasheet_shaved[,!names(Datasheet_shaved)%in% Todrop]
+
+write_xlsx(Datasheet_shaved,"Datasheet_shaved.xlsx")
+
+#add metadata absent in Datasheet but found in LAPD
+which(is.na(LAPD_Andes_MY$Altitude))
+
+LAPD_Andes_MY[72,"Altitude"]=2608
+
+write_xlsx(LAPD_Andes_MY, "LAPD_Andes_MY.xlsx")
