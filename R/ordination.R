@@ -127,29 +127,6 @@ View(cor.ser.by.ord) # Quite a lot!
 # -> Now go trought the list and namualy delete on of the higly correlated indicators
 
 
-# ---------------------
-# ----- APROACH 2 -----
-# ---------------------
-
-#  keep only the important indicators
-
-# indicator loadings for first 2 axis
-# calculate the lenght of each predictor and order them by its "importance"
-# N.indic is number of selected ndicators we thing are important, lets say 10
-N.indic = 10
-
-df.import <- data.frame(smry$species[,1:2]) %>%
-  rownames_to_column() %>%
-  mutate(length = sqrt(abs(df.rda.indi$RDA1)**2 + abs(df.rda.indi$PC1)**2)) %>%
-  arrange(-length) %>%
-  mutate(IMPORTANT = c(rep(TRUE,N.indic),rep(FALSE,nrow(.)-N.indic))) %>%
-  select(rowname, IMPORTANT) %>%
-  rename(Indicator = rowname)
-
-# View the important indicators
-df.import
-
-
 # --------------------------------------------------------------- 
 #
 #         REDUCING THE AMOUNT OF Sites (clustering)
@@ -208,8 +185,6 @@ for(i in 1:length(site.list)) # for each site
    
 }
 
-
-
 cca.env %>%
   ggplot(aes(x=Bin_num,y=ZONE))+
   geom_line(aes(group=`Site Name`))+
@@ -234,12 +209,14 @@ gow.dis<- temmp %>%
   as.data.frame() %>%
   gowdis(x=.) %>%
   as.matrix() %>%
-  as.data.frame() 
+  as.data.frame()
 
 names(gow.dis) <- temmp$`Site Name`
 row.names(gow.dis) <- temmp$`Site Name`
 
 
+# Similarity of sites based on the ZONING of bins
+ggcorrplot(gow.dis)
 
 
 
@@ -250,21 +227,11 @@ row.names(gow.dis) <- temmp$`Site Name`
 # ---------------------------------------------------------------
 
 
-df1  <- data.frame(smry$sites[,1:2])       # PC1 and PC2
-df1$plot <- row.names(cca.data)
+df1  <- data.frame(smry$sites[,1:2]) %>% # PC1 and PC2
+  mutate(plot = row.names(cca.data)) 
 
-df2  <- data.frame(smry$species[,1:2])     # loadings for PC1 and PC2
-
-# calculate the lenght of each predictor 
-df2$length <- sqrt(abs(df2$RDA1)**2 + abs(df2$PC1)**2)
-
-# order df by length of predictors
-df2.sub <- df2 %>%
-  rownames_to_column() %>%
-  arrange(-length) 
-
-# select the  10 most important  
-df2.sub <- df2.sub[1:10,]
+df2  <- data.frame(smry$species[,1:2]) %>% # loadings for PC1 and PC2
+  rownames_to_column()
 
 
 rda.plot <- ggplot(df1, aes(x=RDA1, y=PC1)) + 
@@ -277,10 +244,22 @@ rda.plot <- ggplot(df1, aes(x=RDA1, y=PC1)) +
   scale_color_gradient(low="gray",high = "black") + 
   theme_classic()
 
+rda.plot.ind <- ggplot(df2, aes(x=0, xend=RDA1, y=0, yend=PC1))+
+  geom_hline(yintercept=0, linetype="dotted") +
+  geom_vline(xintercept=0, linetype="dotted") +
+  coord_fixed()+
+  theme_classic()+
+  geom_segment(color="red", arrow=arrow(length=unit(0.01,"npc"))) +
+  geom_text(data=df2, 
+            aes(x=RDA1,y=PC1,label=rowname,
+                hjust=0.5*(1-sign(RDA1)),vjust=0.5*(1-sign(PC1))), 
+            color="red", size=4)
+rda.plot.ind
+
 rda.biplot <- rda.plot +
-  geom_segment(data=df2.sub, aes(x=0, xend=RDA1, y=0, yend=PC1), 
+  geom_segment(data=df2, aes(x=0, xend=RDA1, y=0, yend=PC1), 
                color="red", arrow=arrow(length=unit(0.01,"npc"))) +
-  geom_text(data=df2.sub, 
+  geom_text(data=df2, 
             aes(x=RDA1,y=PC1,label=rowname,
                 hjust=0.5*(1-sign(RDA1)),vjust=0.5*(1-sign(PC1))), 
             color="red", size=4)
