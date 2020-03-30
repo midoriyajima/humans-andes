@@ -19,6 +19,7 @@
 # Libraries
 library(readxl)
 library(tidyverse)
+library(writexl)
 
 
 # Load data
@@ -27,7 +28,22 @@ view(Datasheet)
 str(Datasheet)
 
 
+
+#adjust Datasheet-----------------------------------
+#Datasheet_original<-read_excel("data/Datasheet_original.xlsx")
+
+#add Bin_num column
+#Bin_num<-sub(".*\\-","",Datasheet_original$Bin)
+#Bin_num<-sub("\\ BP.*","",Bin_num)
+#Datasheet<-Datasheet_original%>%mutate(Bin_num=Bin_num)
+
+#save new version of Datasheet
+#write_xlsx(Datasheet,"Datasheet.xlsx")
+#---------------------------------------------------
+
+
 #### FIGURE 1 ---------------------------------
+Datasheet$Bin_num<-as.numeric(Datasheet$Bin_num)
 
 ## number of records per time bin
 ggplot(Datasheet)+
@@ -37,7 +53,15 @@ ggplot(Datasheet)+
   xlab("Time bins") +
   ylab("Number of records") + 
   scale_x_reverse() +
-  ggtitle("Number of pollen records per time bin") 
+  ggtitle("Number of pollen records per time bin")+
+  geom_text(aes(x=Bin_num,label=..count..),stat='count',position=position_dodge(0.9),vjust=-0.2)
+
+##time span of each site
+#in how many bins is counted (not much useful)
+ggplot(Datasheet)+
+  geom_bar( aes(x=`Site Name`))+
+  theme(axis.text.x  = element_text(angle = 70, hjust=1))+
+  geom_text(aes(x=`Site Name`,label=..count..),stat='count',position=position_dodge(0.9),vjust=-0.2)
 
 
 #### FIGURE 2 ---------------------------------
@@ -277,7 +301,6 @@ Datasheet.full %>%
 
 #new shorter datasheet
 #select record spannind last 12000 yr
-Datasheet$Bin_num<-as.numeric(Datasheet$Bin_num)
 Datasheet_shaved<-Datasheet%>%filter(Bin_num<12500)
 
 #select only indicators actually found
