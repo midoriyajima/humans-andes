@@ -15,6 +15,11 @@
 
 
 # ---------------------------------------------
+#TODO: re run code with Datasheet_shaved data
+#TODO:reorder script
+#TODO:figure with number of sites per indicator
+#TODO:figure with time span per site
+#TODO:look at datasheet again (maybe having the time-span-per-site figure), still some weird stuff there
 
 # Libraries
 library(readxl)
@@ -45,7 +50,8 @@ str(Datasheet)
 #### FIGURE 1 ---------------------------------
 Datasheet$Bin_num<-as.numeric(Datasheet$Bin_num)
 
-## number of records per time bin
+## number of records per time bin 
+#version 1
 ggplot(Datasheet)+
   geom_bar(aes(x = Bin_num)) +
   theme_bw() +
@@ -55,6 +61,15 @@ ggplot(Datasheet)+
   scale_x_reverse() +
   ggtitle("Number of pollen records per time bin")+
   geom_text(aes(x=Bin_num,label=..count..),stat='count',position=position_dodge(0.9),vjust=-0.2)
+
+#version 2
+ggplot(Datasheet)+
+  geom_bar(aes(x= reorder(Datasheet$Bin,-Datasheet$Bin_num)))+
+  theme_bw()+
+  theme(axis.text.x  = element_text(angle = 70, hjust=1))+
+  xlab("Time bins")+
+  ggtitle("Number of pollen records per time bin")+
+  geom_text(aes(x=Bin,label=..count..),stat='count',position=position_dodge(0.9),vjust=-0.2)
 
 ##time span of each site
 #in how many bins is counted (not much useful)
