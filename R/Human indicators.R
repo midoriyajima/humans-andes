@@ -18,7 +18,6 @@
 #TODO: re run code with Datasheet_shaved data
 #TODO:reorder script
 #TODO:figure with number of sites per indicator
-#TODO:figure with time span per site
 #TODO:look at datasheet again (maybe having the time-span-per-site figure), still some weird stuff there
 
 # Libraries
@@ -29,6 +28,7 @@ library(writexl)
 
 # Load data
 Datasheet <- read_excel("data/Datasheet.xlsx")
+Datasheet_shaved<-read_excel("data/Datasheet_shaved.xlsx")
 view(Datasheet)
 str(Datasheet)
 
@@ -51,6 +51,7 @@ str(Datasheet)
 Datasheet$Bin_num<-as.numeric(Datasheet$Bin_num)
 
 ## number of records per time bin 
+#with Datasheet
 #version 1
 ggplot(Datasheet)+
   geom_bar(aes(x = Bin_num)) +
@@ -71,21 +72,46 @@ ggplot(Datasheet)+
   ggtitle("Number of pollen records per time bin")+
   geom_text(aes(x=Bin,label=..count..),stat='count',position=position_dodge(0.9),vjust=-0.2)
 
-##time span of each site
-#in how many bins is counted (not much useful)
-ggplot(Datasheet)+
-  geom_bar( aes(x=`Site Name`))+
+#with Datasheet_shaved
+ggplot(Datasheet_shaved)+
+  geom_bar(aes(x= reorder(Datasheet_shaved$Bin,-Datasheet_shaved$Bin_num)))+
+  theme_bw()+
   theme(axis.text.x  = element_text(angle = 70, hjust=1))+
-  geom_text(aes(x=`Site Name`,label=..count..),stat='count',position=position_dodge(0.9),vjust=-0.2)
+  xlab("Time bins")+
+  ggtitle("Number of pollen records per time bin")+
+  geom_text(aes(x=Bin,label=..count..),stat='count',position=position_dodge(0.9),vjust=-0.2)
 
+##time span of each site
+#with Datasheet_shaved
 
+#Add column with length of records
+length_record<-Datasheet_shaved%>%group_by(`Site Name`)%>%summarise(max(Bin_num))
+length_record$Length<-length_record$`max(Bin_num)`
+Datasheet_shaved$Length<-length_record$Length[match(Datasheet_shaved$`Site Name`,length_record$`Site Name`)]
+
+#figure
+ggplot(Datasheet_shaved)+
+  geom_bar( aes(x=reorder(`Site Name`,Latitude), fill=Country))+
+  theme(axis.text.y  = element_text( hjust=1))+
+  theme(axis.title.x = element_blank(),
+        axis.text.x =element_blank(),
+        axis.ticks.x =element_blank(),
+        axis.title.y = element_blank())+
+  geom_text(aes(x=`Site Name`,label=Length),stat='count', hjust=-0.1, size=3)+
+  coord_flip()+
+  ggtitle("Time span of the records")
+
+#ggmap(Andes)+
+ # geom_point(data=Sites, aes(x= Longitude, y=Latitude, color=Country))+
+  #geom_text(data = Sites, aes(x = Longitude + .001, y = Latitude, label=`Site Name`), size=1.8, hjust=-0.1, vjust=0) 
+  
 #### FIGURE 2 ---------------------------------
 ## number of times human indicators are counted in total
 
 # Step 1: Filter indicators from dataset
 Datasheet.indicators <- Datasheet %>%
  select(.,-c("LAPD_ID","Site Name",
-"Reference (short)","Bin number","Bin", "Bin_num" ))
+"Reference (short)","Bin", "Bin_num", "Latitude","Longitude", "Country" ))
 
 str(Datasheet.indicators) # take a look at the dataframe
 
@@ -319,7 +345,6 @@ Datasheet.full %>%
 Datasheet_shaved<-Datasheet%>%filter(Bin_num<12500)
 
 #select only indicators actually found
-library(writexl)
 
 DF.zeros<-(DF.indicators.SUM%>%filter(IN==0))
 Todrop<-as.vector(DF.zeros$IN.name)

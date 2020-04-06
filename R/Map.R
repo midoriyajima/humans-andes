@@ -70,7 +70,7 @@ write_xlsx(Datasheet,"Datasheet.xlsx")
 library(OpenStreetMap)
 library(ggmap)
 
-Sites<-Datasheet%>%distinct(`Site Name`,Latitude,Longitude)
+Sites<-Datasheet%>%distinct(`Site Name`,Latitude,Longitude, Country)
 
 range(Sites$Longitude)
 range(Sites$Latitude)
