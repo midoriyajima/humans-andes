@@ -15,81 +15,61 @@
 
 
 # ---------------------------------------------
-#TODO: re run code with Datasheet_shaved data
-#TODO:reorder script
+#TODO: re run code with Datasheet_shaved data, from figure 4 on
 #TODO:figure with number of sites per indicator
-#TODO:look at datasheet again (maybe having the time-span-per-site figure), still some weird stuff there
 
-# Libraries
+# Packages
 library(readxl)
 library(tidyverse)
 library(writexl)
-
+library(OpenStreetMap)
+library(ggmap)
 
 # Load data
 Datasheet <- read_excel("data/Datasheet.xlsx")
 Datasheet_shaved<-read_excel("data/Datasheet_shaved.xlsx")
+Human_indicators <- read_excel("data/01_Human indicators_V1.xlsx")
 view(Datasheet)
-str(Datasheet)
 
+####TABLE 1------------------------------------
 
+# subset df
+ToTable<-Datasheet_shaved%>%
+  distinct(`Site Name`,Country,Latitude,Longitude,`Reference (short)`)
 
-#adjust Datasheet-----------------------------------
-#Datasheet_original<-read_excel("data/Datasheet_original.xlsx")
+# order df according to Country
+ToTable<-ToTable[order(ToTable$Country),]
 
-#add Bin_num column
-#Bin_num<-sub(".*\\-","",Datasheet_original$Bin)
-#Bin_num<-sub("\\ BP.*","",Bin_num)
-#Datasheet<-Datasheet_original%>%mutate(Bin_num=Bin_num)
+# export toTable in excel
+write_xlsx(ToTable,"Table_01.xlsx")
 
-#save new version of Datasheet
-#write_xlsx(Datasheet,"Datasheet.xlsx")
-#---------------------------------------------------
+####FIGURE 1---------------------------------------------
+## map
 
+#subset df
+Sites<-Datasheet_shaved%>%distinct(`Site Name`,Latitude,Longitude, Country)
 
-#### FIGURE 1 ---------------------------------
-Datasheet$Bin_num<-as.numeric(Datasheet$Bin_num)
+# obtain map of the area
+range(Sites$Longitude)
+range(Sites$Latitude)
+Andes<-get_stamenmap(bbox = c(left=-80,
+                              bottom=-5,
+                              right=-69, 
+                              top=10),
+                     zoom=5,maptype = "terrain-background")
 
-## number of records per time bin 
-#with Datasheet
-#version 1
-ggplot(Datasheet)+
-  geom_bar(aes(x = Bin_num)) +
-  theme_bw() +
-  theme(axis.text.x  = element_text(angle = 70, hjust=1)) +
-  xlab("Time bins") +
-  ylab("Number of records") + 
-  scale_x_reverse() +
-  ggtitle("Number of pollen records per time bin")+
-  geom_text(aes(x=Bin_num,label=..count..),stat='count',position=position_dodge(0.9),vjust=-0.2)
+#map
+ggmap(Andes)+
+  geom_point(data=Sites,
+             aes(x= Longitude, y=Latitude))+
+  geom_text(data=Sites, 
+            aes(x = Longitude + .001, y = Latitude, label=`Site Name`),
+            size=1.8, hjust=-0.1, vjust=0)
 
-#version 2
-ggplot(Datasheet)+
-  geom_bar(aes(x= reorder(Datasheet$Bin,-Datasheet$Bin_num)))+
-  theme_bw()+
-  theme(axis.text.x  = element_text(angle = 70, hjust=1))+
-  xlab("Time bins")+
-  ggtitle("Number of pollen records per time bin")+
-  geom_text(aes(x=Bin,label=..count..),stat='count',position=position_dodge(0.9),vjust=-0.2)
-
-#with Datasheet_shaved
-ggplot(Datasheet_shaved)+
-  geom_bar(aes(x= reorder(Datasheet_shaved$Bin,-Datasheet_shaved$Bin_num)))+
-  theme_bw()+
-  theme(axis.text.x  = element_text(angle = 70, hjust=1))+
-  xlab("Time bins")+
-  ggtitle("Number of pollen records per time bin")+
-  geom_text(aes(x=Bin,label=..count..),stat='count',position=position_dodge(0.9),vjust=-0.2)
-
+####FIGURE 2-------------------------------
 ##time span of each site
+
 #with Datasheet_shaved
-
-#Add column with length of records
-length_record<-Datasheet_shaved%>%group_by(`Site Name`)%>%summarise(max(Bin_num))
-length_record$Length<-length_record$`max(Bin_num)`
-Datasheet_shaved$Length<-length_record$Length[match(Datasheet_shaved$`Site Name`,length_record$`Site Name`)]
-
-#figure
 ggplot(Datasheet_shaved)+
   geom_bar( aes(x=reorder(`Site Name`,Latitude), fill=Country))+
   theme(axis.text.y  = element_text( hjust=1))+
@@ -101,112 +81,142 @@ ggplot(Datasheet_shaved)+
   coord_flip()+
   ggtitle("Time span of the records")
 
-#ggmap(Andes)+
- # geom_point(data=Sites, aes(x= Longitude, y=Latitude, color=Country))+
-  #geom_text(data = Sites, aes(x = Longitude + .001, y = Latitude, label=`Site Name`), size=1.8, hjust=-0.1, vjust=0) 
+#### FIGURE 3 ---------------------------------
+## number of records per time bin 
+
+#with Datasheet
+#version 1
+#ggplot(Datasheet)+
+# geom_bar(aes(x = Bin_num)) +
+#theme_bw() +
+#theme(axis.text.x  = element_text(angle = 70, hjust=1)) +
+#xlab("Time bins") +
+#ylab("Number of records") + 
+#scale_x_reverse() +
+#ggtitle("Number of pollen records per time bin")+
+#geom_text(aes(x=Bin_num,label=..count..),stat='count',position=position_dodge(0.9),vjust=-0.2)
+
+#version 2
+#ggplot(Datasheet)+
+# geom_bar(aes(x= reorder(Datasheet$Bin,-Datasheet$Bin_num)))+
+#theme_bw()+
+#theme(axis.text.x  = element_text(angle = 70, hjust=1))+
+#xlab("Time bins")+
+#ggtitle("Number of pollen records per time bin")+
+#geom_text(aes(x=Bin,label=..count..),stat='count',position=position_dodge(0.9),vjust=-0.2)
+
+#with Datasheet_shaved
+ggplot(Datasheet_shaved)+
+  geom_bar(aes(x= reorder(Datasheet_shaved$Bin,-Datasheet_shaved$Bin_num)))+
+  theme_bw()+
+  theme(axis.text.x  = element_text(angle = 70, hjust=1),
+        axis.title.y = element_blank())+
+  xlab("Time bins")+
+  ggtitle("Number of pollen records per time bin")+
+  geom_text(aes(x=Bin,label=..count..),stat='count',position=position_dodge(0.9),vjust=-0.2)
   
-#### FIGURE 2 ---------------------------------
+#### FIGURE 4 ---------------------------------
 ## number of times human indicators are counted in total
 
-# Step 1: Filter indicators from dataset
-Datasheet.indicators <- Datasheet %>%
- select(.,-c("LAPD_ID","Site Name",
-"Reference (short)","Bin", "Bin_num", "Latitude","Longitude", "Country" ))
+## Old version: with Datasheet, counting in how many bins are indicators found (not much useful)
 
-str(Datasheet.indicators) # take a look at the dataframe
+#Step 1: Filter indicators from dataset
+#Datasheet.indicators <- Datasheet %>%
+ #select(.,-c("LAPD_ID\n","Site Name",
+#"Reference (short)","Bin", "Bin_num", "Latitude","Longitude", "Country" ))
+
+#str(Datasheet.indicators) # take a look at the dataframe
 
 # Step 2: Convert counts from character to numeric
-Datasheet.indicators <- apply (Datasheet.indicators,2,
-                               FUN= function(x) as.numeric(unlist(x)))
+#Datasheet.indicators <- apply (Datasheet.indicators,2,
+           #                    FUN= function(x) as.numeric(unlist(x)))
 
 # Step 3: View summary per human indicator 
-Datasheet.indicators %>% summary
+#Datasheet.indicators %>% summary
 
 # Step 4: Make datasheet with site vs number of times an indicator is counted  
-Datasheet.indicators <- as.data.frame(Datasheet.indicators)
+#Datasheet.indicators <- as.data.frame(Datasheet.indicators)
 
-Datasheet.indicators.full <- bind_cols(Datasheet %>%                
-                                         select(.,c("Site Name")),
-                                       Datasheet.indicators)  
-# Take a look at the data
-glimpse(Datasheet.indicators.full)
-view(Datasheet.indicators.full)
+#Datasheet.indicators.full <- bind_cols(Datasheet %>%                
+ #                                        select(.,c("Site Name")),
+  #                                     Datasheet.indicators)  
+ 
+#Take a look at the data
+#glimpse(Datasheet.indicators.full)
+#view(Datasheet.indicators.full)
 
 
 # Step 5: Make plot of how often indicators are counted in total
 
 # calculate per human indicator the sum
-DF.indicators.SUM <-data.frame(IN=apply(Datasheet.indicators, 2, 
-                                        FUN = function(x) sum(x,na.rm = T)))
+#DF.indicators.SUM <-data.frame(IN=apply(Datasheet.indicators, 2, 
+ #                                       FUN = function(x) sum(x,na.rm = T)))
 # str(DF.indicators.SUM)
 # view(DF.indicators.SUM)
 
-DF.indicators.SUM$IN.name <- row.names(DF.indicators.SUM) %>% as.factor() # why do this step?
+#DF.indicators.SUM$IN.name <- row.names(DF.indicators.SUM) %>% as.factor() 
 
-DF.indicators.SUM.no0 <- DF.indicators.SUM %>% filter(IN > 0) # remove all indicators with 0 values
+#DF.indicators.SUM.no0 <- DF.indicators.SUM %>% filter(IN > 0) # remove all indicators with 0 values
 # glimpse (DF.indicators.SUM)
 # view(DF.indicators.SUM)
 
 # plot      
-DF.indicators.SUM.no0 %>%
-  ggplot(.,aes(x = reorder(IN.name,IN,FUN = max),y=IN)) + # order the x-axis (human indicators) from large to small
-  geom_bar(stat = "identity") +
-  theme(axis.text.x  = element_text(angle = 70, hjust=1)) +
-  xlab("Human Indicators") + ylab("Count") +
-  ggtitle("Number of times human indicators are counted in total") 
+#DF.indicators.SUM.no0 %>%
+ # ggplot(.,aes(x = reorder(IN.name,IN,FUN = max),y=IN)) + # order the x-axis (human indicators) from large to small
+  #geom_bar(stat = "identity") +
+  #theme(axis.text.x  = element_text(angle = 70, hjust=1)) +
+  #xlab("Human Indicators") + ylab("Count") +
+  #ggtitle("Number of times human indicators are counted in total") 
 
 
 
-
-
-#### FIGURE 3 ---------------------------------
+#### FIGURE 5 ---------------------------------
 ## number of times human indicators are counted in each site
 
+##Old verison: with Datasheet
 # Step 1: remove all indicators that were not counted 0
-df <- Datasheet.indicators.full
+#df <- Datasheet.indicators.full
 
 # remove rows with NAs
-df_pres <- df %>% drop_na() # This removes rows with value 0 (empthy bins for a site)
-str(df_pres)
+#df_pres <- df %>% drop_na() # This removes rows with value 0 (empthy bins for a site)
+#str(df_pres)
 
 # Step 2: We are going to use the var function to check the variance of the different columns
 # check which human indicators = 0
-summary(df_pres)
-apply(df_pres, 2, var)
+#summary(df_pres)
+#apply(df_pres, 2, var)
 
 # remove all columns (human indicators) that have a variance of 0
-df_pres <- df_pres[ - as.numeric(which(apply(df_pres, 2, var) == 0))]
-summary(df_pres) # voilá
+#df_pres <- df_pres[ - as.numeric(which(apply(df_pres, 2, var) == 0))]
+#summary(df_pres) # voilá
 
 # plot
-reshape2::melt(df_pres) %>%
-  group_by(`Site Name`,variable) %>%
-  drop_na(variable) %>% 
-  summarise(Count = sum(value)) %>%
-  ggplot(aes(x=variable,y=Count))+
-  geom_bar(stat = "identity")+
-  facet_wrap(~`Site Name`)+
-  theme(axis.text.x = element_text(angle = 90, hjust=1))
+#reshape2::melt(df_pres) %>%
+ # group_by(`Site Name`,variable) %>%
+  #drop_na(variable) %>% 
+  #summarise(Count = sum(value)) %>%
+  #ggplot(aes(x=variable,y=Count))+
+  #geom_bar(stat = "identity")+
+  #facet_wrap(~`Site Name`)+
+  #theme(axis.text.x = element_text(angle = 90, hjust=1))
 
 
 
-#### FIGURE 4 ---------------------------------
+#### FIGURE 6 ---------------------------------
 ## in which sites are which indicators found and how often? 
 
-reshape2::melt(df_pres) %>%
-  group_by(variable,`Site Name`) %>%
-  summarise(Count = sum(value)) %>%
-  ggplot(aes(x=`Site Name`,y=Count))+
-  geom_bar(stat = "identity")+
-  facet_wrap(~variable)+
-  theme_bw()+
-  theme(axis.text.x = element_text(angle = 90, hjust=1))
+##Old version: with Datasheet
+#reshape2::melt(df_pres) %>%
+ # group_by(variable,`Site Name`) %>%
+  #summarise(Count = sum(value)) %>%
+  #ggplot(aes(x=`Site Name`,y=Count))+
+  #geom_bar(stat = "identity")+
+  #facet_wrap(~variable)+
+  #theme_bw()+
+  #theme(axis.text.x = element_text(angle = 90, hjust=1))
 
 
-#### Analyses of direct/indirect indicators
-
-# load data
-Human_indicators <- read_excel("data/01_Human indicators_V1.xlsx")
+#### Analyses of direct/indirect indicators-------
 
 indic <- Human_indicators %>% 
   select (Indicator, 'Group (Taxa)')
@@ -248,9 +258,10 @@ Datasheet.ind.sum$Sum_indirect<-DF.Indirect.Sum$SUM
 
 
 
-# Absolute frequency of direct indicators through time per site - NEW
+#### FIGURE 7-------------------------------------------
+##Absolute frequency of direct indicators through time per site 
 Datasheet.ind.sum %>% 
-  ggplot(aes(x=reorder(Bin,-Bin_num), y=SUM)) +  #(Midori) Bin column is charachter, in this way bars are displayed and ordered from old to recent (otherwise they would be alphabetically ordered)
+  ggplot(aes(x=reorder(Bin,-Bin_num), y=SUM)) +  
   geom_bar(stat = "identity",width = 0.5) +
   facet_wrap(~`Site Name`) +
   theme_bw() +
@@ -260,7 +271,7 @@ Datasheet.ind.sum %>%
   xlab("Time bins")
 
 
-
+#### FIGURE 8----------------------------------------
 ## Absolute frequency of indirect indicators through time per site
 # Also, only the df_pres was made to only show human indicators that were counted
 Datasheet.ind.sum %>% 
@@ -284,6 +295,7 @@ Datasheet.ind.sum %>% filter(`Site Name`=="Pantano de Genagra")%>%
   xlab("Time bins")
   ggtitle("Pantano de Genagra")
 
+#### FIGURE 9-------------------------------------
 ## to have a single chart for direct and indirect indicators
 DF.Indirect.Sum <- DF.Indirect.Sum %>% 
   mutate(IND=rep("Indirect"))
@@ -337,24 +349,3 @@ Datasheet.full %>%
   ylab("Absolute frequency")+
   xlab("Time bins")+
   ggtitle("Pantano de Genagra")
-
-#### PLAYING WITH DATASHEET 
-
-#new shorter datasheet
-#select record spannind last 12000 yr
-Datasheet_shaved<-Datasheet%>%filter(Bin_num<12500)
-
-#select only indicators actually found
-
-DF.zeros<-(DF.indicators.SUM%>%filter(IN==0))
-Todrop<-as.vector(DF.zeros$IN.name)
-Datasheet_shaved<-Datasheet_shaved[,!names(Datasheet_shaved)%in% Todrop]
-
-write_xlsx(Datasheet_shaved,"Datasheet_shaved.xlsx")
-
-#add metadata absent in Datasheet but found in LAPD
-which(is.na(LAPD_Andes_MY$Altitude))
-
-LAPD_Andes_MY[72,"Altitude"]=2608
-
-write_xlsx(LAPD_Andes_MY, "LAPD_Andes_MY.xlsx")
