@@ -12,8 +12,10 @@ Bin_num<-sub("\\ BP.*","",Bin_num)
 Datasheet<-Datasheet_original%>%mutate(Bin_num=Bin_num)
 Datasheet$Bin_num<-as.numeric(Datasheet$Bin_num)
 
+
 #save new version of Datasheet
 write_xlsx(Datasheet,"Datasheet.xlsx")
+
 
 #### add country, lat, long to Datasheet--------------------
 #Df with metadata for all sites (even the ones that are not in Datasheet)
@@ -76,7 +78,7 @@ length_record$Length<-length_record$`max(Bin_num)`
 Datasheet_shaved$Length<-length_record$Length[match(Datasheet_shaved$`Site Name`,length_record$`Site Name`)]
 
 #add metadata absent in LAPD_Andes
-which(is.na(LAPD_Andes_MY$Altitude))
-LAPD_Andes_MY[72,"Altitude"]=2608 #value found in the original paper
+which(is.na(LAPD_Andes$Altitude))
+LAPD_Andes[72,"Altitude"]=2608 #value found in the original paper
 
 write_xlsx(LAPD_Andes_MY, "LAPD_Andes_MY.xlsx")
