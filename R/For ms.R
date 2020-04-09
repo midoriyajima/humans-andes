@@ -26,8 +26,5 @@ which(is.na(nomatch2))
 sites_nomatch2<-lapd_andes_done[c(29,33,36),]
 sites_nomatch2$SiteName
 
-#TODO: INCLUDE Rio Timbio
-(wille et al, 2000)
-#TODO:change name to tres Lagunas 
-#     (two records of the same site, split in T.L. and T.L.(2))
-#     and re run code for time span of the records, table 1, map
+
+
