@@ -15,8 +15,7 @@
 
 
 # ---------------------------------------------
-#TODO: re run code with Datasheet_shaved data, from figure 4 on
-#TODO:figure with number of sites per indicator
+#TODO: re run code with Datasheet_shaved data, from Analysis of direct/ind indicators
 
 # Packages
 library(readxl)
@@ -52,19 +51,19 @@ Sites<-Datasheet_shaved%>%distinct(`Site Name`,Latitude,Longitude, Country)
 # obtain map of the area
 range(Sites$Longitude)
 range(Sites$Latitude)
-Andes<-get_stamenmap(bbox = c(left=-80,
-                              bottom=-5,
-                              right=-69, 
-                              top=10),
+Andes<-get_stamenmap(bbox = c(left=-84,
+                              bottom=-7,
+                              right=-67, 
+                              top=12),
                      zoom=5,maptype = "terrain-background")
 
 #map
-ggmap(Andes)+
+ ggmap(Andes)+
   geom_point(data=Sites,
              aes(x= Longitude, y=Latitude))+
   geom_text(data=Sites, 
             aes(x = Longitude + .001, y = Latitude, label=`Site Name`),
-            size=1.8, hjust=-0.1, vjust=0)
+            size=1, hjust=-0.1, vjust=0)
 
 ####FIGURE 2-------------------------------
 ##time span of each site
@@ -167,9 +166,41 @@ ggplot(Datasheet_shaved)+
   #theme(axis.text.x  = element_text(angle = 70, hjust=1)) +
   #xlab("Human Indicators") + ylab("Count") +
   #ggtitle("Number of times human indicators are counted in total") 
-
-
-
+ 
+ Datasheet_sh.indicators<-Datasheet_shaved %>%
+   select(.,-c("LAPD_ID","Site Name","Reference (short)","Bin", "Bin_num",
+               "Latitude","Longitude", "Country","Length" ))
+ 
+ # Step 2: Convert counts from character to numeric
+ Datasheet_sh.indicators <- apply (Datasheet_sh.indicators,2,
+                                   FUN= function(x) as.numeric(unlist(x)))
+ 
+ # Step 4: Make datasheet with site vs number of times an indicator is counted  
+ Datasheet_sh.indicators <- as.data.frame(Datasheet_sh.indicators)
+ 
+ Datasheet_sh.ind.full <- bind_cols(Datasheet_shaved %>%                
+                                      select(.,c("Site Name")),
+                                      Datasheet_sh.indicators)  
+ 
+ #Step 5: calculate number of times (i.e num of bins) taxa are found per site
+ IndxSite<- reshape2::melt(Datasheet_sh.ind.full) %>%
+   group_by(`Site Name`,variable) %>%
+   summarise(Count = sum(value)) 
+ 
+ #print 1 if taxa are found in a site (despite the number of bins where it is found) 
+ IndxSite$Pres<-ifelse(IndxSite$Count==0,0,1)
+ 
+ #number of times human indicators are counted in total
+ IndxSite%>%
+ ggplot(aes(x=variable,y=Pres))+
+   geom_bar(stat = "identity")+
+   theme_bw()+
+   theme(axis.text.x = element_text(angle = 90, hjust=1),
+         axis.title.y = element_blank())+
+   xlab("Indicators")+
+   ggtitle("Number of sites where Indicators are found")
+   
+   
 #### FIGURE 5 ---------------------------------
 ## number of times human indicators are counted in each site
 
@@ -199,7 +230,15 @@ ggplot(Datasheet_shaved)+
   #geom_bar(stat = "identity")+
   #facet_wrap(~`Site Name`)+
   #theme(axis.text.x = element_text(angle = 90, hjust=1))
-
+ 
+ reshape2::melt(Datasheet_sh.ind.full) %>%
+   group_by(`Site Name`,variable) %>%
+   summarise(Count = sum(value, na.rm = T))%>%
+   ggplot(aes(x=variable,y=Count))+
+   geom_bar(stat = "identity")+
+   facet_wrap(~`Site Name`)+
+   theme(axis.text.x = element_text(angle = 90, hjust=1))+
+   ggtitle("Number of times Indicators are found per Site")
 
 
 #### FIGURE 6 ---------------------------------
@@ -215,11 +254,23 @@ ggplot(Datasheet_shaved)+
   #theme_bw()+
   #theme(axis.text.x = element_text(angle = 90, hjust=1))
 
+ reshape2::melt(Datasheet_sh.ind.full) %>%
+   group_by(variable,`Site Name`) %>%
+   summarise(Count = sum(value, na.rm = T)) %>%
+   ggplot(aes(x=`Site Name`,y=Count))+
+   geom_bar(stat = "identity")+
+   facet_wrap(~variable)+
+   theme_bw()+
+   theme(axis.text.x = element_text(angle = 90, hjust=1))+
+   ggtitle("Number of times Indicators are found per Site")
 
 #### Analyses of direct/indirect indicators-------
 
-indic <- Human_indicators %>% 
-  select (Indicator, 'Group (Taxa)')
+#Import dataset
+Human_indicators <- read_excel("data/01_Human indicators_V1.xlsx")
+ 
+ #indic <- Human_indicators %>% 
+ #select (Indicator, 'Group (Taxa)')
 
 ## Select only direct indicators
 Direct <- Human_indicators %>% 
@@ -229,9 +280,13 @@ Direct <- Human_indicators %>%
 
 Direct <- as.vector(Direct$`Group (Taxa)`)
 
-DF.Direct<-Datasheet[,Direct]
-df_direct <- df_pres[,Direct]
-DF.Direct<-apply(DF.Direct,2, FUN = function(x) as.numeric(x))
+#!! it does not work with Datasheet_shaved beacause in Direct are included indicators 
+#   absent in the df (not found, so excluded)
+
+DF.Direct<-Datasheet[,Direct]  
+#df_direct <- df_pres[,Direct]
+#DF.Direct<-apply(DF.Direct,2, FUN = function(x) as.numeric(x))
+
 
 
 #DF.Direct.full <- bind_cols(Datasheet %>% select(c("Site Name", "Bin number","Bin")),DF.Direct)

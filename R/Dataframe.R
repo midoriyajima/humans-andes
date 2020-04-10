@@ -66,14 +66,32 @@ write_xlsx(LAPD_Andes,"LAPD_Andes_MY.xlsx")
 Datasheet_shaved<-Datasheet%>%filter(Bin_num<12500)
 
 #select only indicators actually found
-DF.zeros<-(DF.indicators.SUM%>%filter(IN==0)) #"DF.indicators.SUM" from Human indicators.R
+#Step 1: Filter indicators from dataset
+Datasheet.indicators <- Datasheet %>%
+select(.,-c("LAPD_ID","Site Name",
+"Reference (short)","Bin", "Bin_num", "Latitude","Longitude", "Country" ))
+
+# Step 2: Convert counts from character to numeric
+Datasheet.indicators <- apply (Datasheet.indicators,2,
+                    FUN= function(x) as.numeric(unlist(x)))
+
+# Step 4: Make datasheet with site vs number of times an indicator is counted  
+Datasheet.indicators <- as.data.frame(Datasheet.indicators)
+
+# calculate per human indicator the sum
+DF.indicators.SUM <-data.frame(IN=apply(Datasheet.indicators, 2, 
+                                       FUN = function(x) sum(x,na.rm = T)))
+DF.indicators.SUM$IN.name <- row.names(DF.indicators.SUM) %>% as.factor() 
+
+#datasheet with only indicators actually found
+DF.zeros<-(DF.indicators.SUM%>%filter(IN==0)) 
 Todrop<-as.vector(DF.zeros$IN.name)
 Datasheet_shaved<-Datasheet_shaved[,!names(Datasheet_shaved)%in% Todrop]
 
-write_xlsx(Datasheet_shaved,"Datasheet_shaved.xlsx")
 
 #add column with records lenght to Datasheet_shaved-------
 length_record<-Datasheet_shaved%>%group_by(`Site Name`)%>%summarise(max(Bin_num))
 length_record$Length<-length_record$`max(Bin_num)`
 Datasheet_shaved$Length<-length_record$Length[match(Datasheet_shaved$`Site Name`,length_record$`Site Name`)]
 
+write_xlsx(Datasheet_shaved,"Datasheet_shaved.xlsx")
