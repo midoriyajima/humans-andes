@@ -89,9 +89,15 @@ Todrop<-as.vector(DF.zeros$IN.name)
 Datasheet_shaved<-Datasheet_shaved[,!names(Datasheet_shaved)%in% Todrop]
 
 
-#add column with records lenght to Datasheet_shaved-------
+#add columns to Datasheet_shaved-------
+#records lenght
 length_record<-Datasheet_shaved%>%group_by(`Site Name`)%>%summarise(max(Bin_num))
 length_record$Length<-length_record$`max(Bin_num)`
-Datasheet_shaved$Length<-length_record$Length[match(Datasheet_shaved$`Site Name`,length_record$`Site Name`)]
+Datasheet_shaved$Length<-length_record$Length[match(Datasheet_shaved$`Site Name`,
+                                                    length_record$`Site Name`)]
+
+# Altitude of sites
+Datasheet_shaved$Altitude<-LAPD_Andes$Altitude[match(Datasheet_shaved$`Site Name`,
+                                                     LAPD_Andes$SiteName)]
 
 write_xlsx(Datasheet_shaved,"Datasheet_shaved.xlsx")

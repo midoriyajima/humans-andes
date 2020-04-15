@@ -5,6 +5,7 @@
 #
 #-----------------------------------------------
 
+require(tidyverse)
 
 #number of suitable records
 lapd_andes_suitable<-LAPD_Andes%>%
@@ -13,11 +14,15 @@ lapd_andes_suitable<-LAPD_Andes%>%
 view(lapd_andes_suitable%>%filter(Country=="Colombia"))
 view(lapd_andes_suitable%>%filter(Country=="Venezuela"))
 view(lapd_andes_suitable%>%filter(Country=="Ecuador"))
-
+view(lapd_andes_suitable%>%filter(DONE=="Check Hardcopy"))
      
 #number of records in the dataset
 lapd_andes_done<-lapd_andes_suitable%>%
   filter(DONE %in% c( "DONE", "DONE\r\n"))
+
+view(lapd_andes_done%>%filter(Country=="Colombia"))
+view(lapd_andes_done%>%filter(Country=="Venezuela"))
+view(lapd_andes_done%>%filter(Country=="Ecuador"))
 
 #number of records does not match with the one in Datasheet
 sitesname2<-distinct(Datasheet_shaved, `Site Name`)
