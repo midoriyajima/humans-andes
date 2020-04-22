@@ -13,7 +13,6 @@ Bin_num<-sub("\\ BP.*","",Bin_num)
 Datasheet<-Datasheet_original%>%mutate(Bin_num=Bin_num)
 Datasheet$Bin_num<-as.numeric(Datasheet$Bin_num)
 
-
 #save new version of Datasheet
 write_xlsx(Datasheet,"Datasheet.xlsx")
 
@@ -45,9 +44,13 @@ Sites_Nomatch$`Site Name`
 LAPD_Andes$SiteName
 
 #rename Datasheet Site Names according to the ones in LAPD_Andes
-to_replace<-c("Cerro Toledo", "El Tiro\r\n" , "Laguna Natosas forest", "Pedras Blancas","Huila", "Paramo de Agua Blanca III", "Paramo de pena Negra I")
+to_replace<-c("Cerro Toledo",  "El Tiro\r\r\n"  , "Laguna Natosas forest", "Pedras Blancas","Huila", "Paramo de Agua Blanca III", "Paramo de pena Negra I")
 with_this<-c("Cerro Toledo CT", "El Tiro", "Lagunas Natosas Forest", "Piedras Blancas", "Huila\r\n", "Agua Blanca PAB III", "Paramo de Pena Negra 1")
 Datasheet$`Site Name`<-Datasheet$`Site Name`%>%plyr::mapvalues(to_replace,with_this)
+
+#insert correct lat, long for Pantano de Pecho
+LAPD_Andes[47,"Latitude"]= -0.20
+LAPD_Andes[47,"Longitude"]= -78.37
 
 #add columns with country, latitude and longitude to Datasheet, per each site
 Datasheet$Country<-LAPD_Andes$Country[match(Datasheet$`Site Name`,LAPD_Andes$SiteName)]
@@ -99,5 +102,36 @@ Datasheet_shaved$Length<-length_record$Length[match(Datasheet_shaved$`Site Name`
 # Altitude of sites
 Datasheet_shaved$Altitude<-LAPD_Andes$Altitude[match(Datasheet_shaved$`Site Name`,
                                                      LAPD_Andes$SiteName)]
+# correct other typos (found later in "Human indicators.R)
+Datasheet[558,3]<-"Giraldo-Giraldo et al, 2018"
+Datasheet_shaved[426,3]<-"Giraldo-Giraldo et al, 2018"
+
+write_xlsx(Datasheet_shaved,"Datasheet_shaved.xlsx")
+write_xlsx(Datasheet,"Datasheet.xlsx")
+
+# Import and adjust dataframe with right indicators-------
+Human_indicators_original <- read_excel("data/02_Human indicators_V2.xlsx")
+
+Human_indicators<-Human_indicators_original[-c(2,8,13,14,22,68),]%>%
+  select(c("Group (Taxa)",
+           "Family",
+           "Indicator",
+           "Potential food source (no/low/high)",
+           "North Andean fossil records? [yes/no]" ))
+
+Human_indicators[48,"Indicator"]<-"Indirect"
+
+colnames(Human_indicators)[4]<-"Potential food source"
+
+write_xlsx(Human_indicators,"Human_indicators.xlsx")
+
+# Change Ind names in Datasheet shaved (match names in Human_indicators)
+Col.to<-pull(Human_indicators%>% 
+  filter(`North Andean fossil records? [yes/no]`=="yes")%>%
+  select(`Group (Taxa)`))
+
+Col.from<-names(Datasheet_shaved)[5:46]
+
+Datasheet_shaved<-Datasheet_shaved %>% rename_at(vars(Col.from), ~Col.to)
 
 write_xlsx(Datasheet_shaved,"Datasheet_shaved.xlsx")

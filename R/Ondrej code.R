@@ -21,7 +21,6 @@ str(Datasheet)
 
 
 #### FIGURE 1 ---------------------------------
-
 ## number of sites per time bin
 ggplot(Datasheet)+
   geom_bar(aes(x= reorder(Datasheet$Bin,-Datasheet$Bin_num)))+
@@ -29,6 +28,7 @@ ggplot(Datasheet)+
   theme(axis.text.x  = element_text(angle = 70, hjust=1))+
   xlab("Time bins")+
   ggtitle("Number of sites per time bin")
+  
 
 ## number of records per time bin (Suzette)
 ggplot(Datasheet)+
@@ -39,6 +39,7 @@ ggplot(Datasheet)+
   ylab("Number of records") + 
   scale_x_reverse() +
   ggtitle("Number of pollen records per time bin") 
+
 
 
 #### FIGURE 2 ---------------------------------
