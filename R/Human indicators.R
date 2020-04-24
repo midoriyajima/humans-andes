@@ -12,9 +12,15 @@
 # Ondrej XX <email>
 # Suzette Flantua <s.g.a.flantua@gmail.com>
 
-#TODO:from fig 10c on
-# ---------------------------------------------
 
+# ---------------------------------------------
+#TODO: charcoal out from indicators
+# TODO: FIG 5, 6, 6B, 6C color boxes for Country, order by latitude, sign for hiatuses,
+# display lenght of cores or relative frequency (also for fig 7)
+# new version with numbers instead of indicators name, split per Country
+# TODO: faceted map with less colored background (shades for mountains)
+# faceted map showing only "red" points, side by side with big map with all sites
+# TODO: set fig 3 as timeline (inverted axis, arrow)
 
 # Packages
 library(readxl)
@@ -23,6 +29,7 @@ library(writexl)
 library(OpenStreetMap)
 library(ggmap)
 library(plotly)
+library (magick)
 
 # Load data
 Datasheet <- read_excel("data/Datasheet.xlsx")
@@ -210,18 +217,24 @@ ggplot(Datasheet_shaved)+
  # print 1 if taxa are found in a site (despite the number of bins where it is found) 
  IndxSite$Pres<-ifelse(IndxSite$Count==0,0,1)
  
- #state wich ind is direct/indirect
- #Import dataset
+ ## state wich ind is direct/indirect
  IndxSite$Ind<-Human_indicators$Indicator[match(IndxSite$variable,
                                                 Human_indicators$`Group (Taxa)`)]
  
+ ##state wich ind has high, low, no food potential
  IndxSite$Pot<-Human_indicators$`Potential food source`[match(IndxSite$variable,
                                                 Human_indicators$`Group (Taxa)`)]
  
+ ## to have columns ordered by heght in graph
+ # create col with sum presence of indicators (number of sites where indicators found)
+ TotPres<-IndxSite%>%group_by(variable)%>%summarise(Pres=sum(Pres,na.rm = T))
+ IndxSite$TotPres<-TotPres$Pres[match(IndxSite$variable,
+                                      TotPres$variable)]
  
- # number of times human indicators are counted in total
+ 
+ # plot
  IndxSite%>%
- ggplot(aes(x=variable,y=Pres,fill=Ind))+
+ ggplot(aes(x=reorder(variable,TotPres),y=Pres,fill=Ind))+
    geom_bar(stat = "identity")+
    theme_bw()+
    theme(axis.text.x = element_text(angle = 70, hjust=1),
@@ -233,7 +246,7 @@ ggplot(Datasheet_shaved)+
 ####FIGURE 4b---------------------------------
  # as above, distinguishing for Potential source of food
  IndxSite%>%
-   ggplot(aes(x=variable,y=Pres,fill=Pot))+
+   ggplot(aes(x=reorder(variable,TotPres),y=Pres,fill=Pot))+
    geom_bar(stat = "identity")+
    theme_bw()+
    theme(axis.text.x = element_text(angle = 70, hjust=1),
@@ -293,11 +306,12 @@ ggplot(Datasheet_shaved)+
 # distinguish beteween different potential food source
  
 #sort indicators in new df by food potential 
- IndxPot<-Human_indicators%>%
+
+ IndxPot<-Human_indicators%>% 
    group_by(`Potential food source`)%>%
-   do( data.frame(with(data=., .[order(`Group (Taxa)`),] )) )%>% 
-   filter(North.Andean.fossil.records...yes.no.=="yes")%>%
-   pull(Group..Taxa.)
+   do( data.frame(with(data=., .[order(`Group (Taxa)`),] )) )%>% # sort human indiactors by group 
+   filter(North.Andean.fossil.records...yes.no.=="yes")%>% #select only indicators that are found in the other df
+   pull(Group..Taxa.) #create vector indicators (now ordered)
  
 Datasheet_sh.ind.full.sort<-Datasheet_sh.ind.full[,IndxPot]%>%
   mutate(`Site Name`=Datasheet_shaved$`Site Name`)
@@ -483,7 +497,8 @@ Datasheet_sh.full.long<-rbind(bind_cols(Datasheet_shaved,DF_sh.Indirect.Sum),
                               bind_cols(Datasheet_shaved,DF_sh.Direct.Sum))
 
 #order levels of IND to show Indirect ind on the top of direct (in the graph)
-Datasheet_sh.full.long$IND<-factor(Datasheet_sh.full.long$IND, levels = c("Indirect","Direct"))
+Datasheet_sh.full.long$IND<-factor(Datasheet_sh.full.long$IND, 
+                                   levels = c("Indirect","Direct"))
 
 #direct and indirect side by side
 ggplot(data=Datasheet_sh.full.long, 
@@ -498,7 +513,6 @@ ggplot(data=Datasheet_sh.full.long,
   xlab("Time bins")+
   ggtitle("Absolute frequency of indicators through time")
 
-
 # FIGURE 10b-------------------------------------------------
 #stacked bar chart, filled bars (easier to read)
 ggplot(data=Datasheet_sh.full.long, 
@@ -512,7 +526,73 @@ ggplot(data=Datasheet_sh.full.long,
   xlab("Time bins")+
   ggtitle("Absolute frequency of indicators through time")
 
+### FIGURE 10ba-----------------------------------------
+# even better, smooth graph
+
+ggplot(Datasheet_sh.full.long, 
+       aes(-Bin_num,SUM,fill=IND,alpha=0.5))+
+  geom_density(stat="identity")+
+  scale_fill_manual(values = c("#00BFC4", "#F8766D"),name="Indicators")+
+  scale_alpha_continuous(guide= "none")+
+  facet_wrap(~`Site Name`)+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 90, hjust=1))+
+  ylab("Absolute frequency")+
+  xlab("Time bins")+
+  ggtitle("Absolute frequency of indicators through time")
+
+# FIGURE X---------------------------------
+#The Idea is to have a plot for each Country and combine them
+#cowplot::plot_grid(plot1, plot2, labels = c("1", "2"), nrow = 2)
+# but maybe possible also with grid Extra
+
+# Three altitudinal zones
+Datasheet_sh.full.long$Alt_zone <-ifelse(Datasheet_sh.full.long$Altitude < 2000,
+                                         "1000-2000 m",
+                                         ifelse(Datasheet_sh.full.long$Altitude %in% 2000:3000,
+                                                "2000-3000 m", "3000-4215 m" ))
+
+
+Col2k<-ggplot(Datasheet_sh.full.long%>%
+                 filter(Country=="Colombia")%>%
+                filter(Alt_zone== "1000-2000 m"), 
+       aes(-Bin_num,SUM,fill=IND,alpha=0.5))+
+  geom_density(stat="identity")+
+  scale_fill_manual(values = c("#00BFC4", "#F8766D"),name="Indicators")+
+  scale_alpha_continuous(guide= "none")+
+  facet_grid(Alt_zone ~`Site Name`)+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 90, hjust=1))
+
+Col3k<-ggplot(Datasheet_sh.full.long%>%
+                filter(Country=="Colombia")%>%
+                filter(Alt_zone== "2000-3000 m"), 
+              aes(-Bin_num,SUM,fill=IND,alpha=0.5))+
+  geom_density(stat="identity")+
+  scale_fill_manual(values = c("#00BFC4", "#F8766D"),name="Indicators")+
+  scale_alpha_continuous(guide= "none")+
+  facet_grid(Alt_zone ~`Site Name`)+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 90, hjust=1))
+
+Col4k<-ggplot(Datasheet_sh.full.long%>%
+                filter(Country=="Colombia")%>%
+                filter(Alt_zone== "3000-4215 m"), 
+              aes(-Bin_num,SUM,fill=IND,alpha=0.5))+
+  geom_density(stat="identity")+
+  scale_fill_manual(values = c("#00BFC4", "#F8766D"),name="Indicators")+
+  scale_alpha_continuous(guide= "none")+
+  facet_grid(Alt_zone ~`Site Name`)+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 90, hjust=1))
+
+ColAlt<-gridExtra::grid.arrange(Col2k,Col3k,Col4k) # don't like the output
+
+
 #### FIGURE 10c------------------------------------------
+# comparison for food potential, stacked bars 
+#(good to see total indicators but not proportions)
+
 DF_sh.High.Sum<-DF_sh.High.Sum%>%
   mutate(IND=rep("High"))
 colnames(DF_sh.High.Sum)[1]<-"SUM"
@@ -530,7 +610,7 @@ Datasheet_sh.pot.full.long<-rbind(bind_cols(Datasheet_shaved,DF_sh.High.Sum),
                               bind_cols(Datasheet_shaved,DF_sh.Low.Sum),
                               bind_cols(Datasheet_shaved,DF_sh.No.Sum))
 #plot
-ggplot(data=Datasheet_sh.pot.full.long, 
+graph1<-ggplot(data=Datasheet_sh.pot.full.long, 
        aes(x = reorder(Bin_num,-Bin_num),y=SUM,fill=IND))+
   geom_bar(stat = "identity",width = 1)+
   facet_wrap(~`Site Name`)+
@@ -540,13 +620,51 @@ ggplot(data=Datasheet_sh.pot.full.long,
   xlab("Time bins")+
   ggtitle("Absolute frequency of indicators through time")
 
+### FIGURE 10 ca--------------------------------------------
+#smooth graph, good for comparison in proportions of ind
+
+Datasheet_sh.pot.full.long$IND<-factor(Datasheet_sh.pot.full.long$IND,
+                                       levels = c("No","Low","High"))
+
+ggplot(Datasheet_sh.pot.full.long, 
+       aes(-Bin_num,SUM,fill=IND, alpha=0.7))+
+  geom_density(stat="identity")+
+  scale_fill_manual(values = c("#619CFF","#00BA38","#F8766D"))+
+  scale_alpha_continuous(guide= "none")+
+  facet_wrap(~`Site Name`)+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 90, hjust=1))+
+  ylab("Absolute frequency")+
+  xlab("Time bins")+
+  ggtitle("Absolute frequency of indicators through time")
+
 # FIGURE 10d-----------------------------------------------
-#
+# comparison between high and low food potential indicators, stacked bars
+
+#to see colors of plot above
+ggplot_build(graph1)$data
+
+#plot
 Datasheet_sh.pot.full.long%>%
   filter(IND==c("High", "Low"))%>%
   ggplot(aes(x = reorder(Bin_num,-Bin_num),y=SUM,fill=IND))+
   geom_bar(stat = "identity",width = 1)+
-  scale_fill_manual(values = c("#F8766D", "green"))+
+  scale_fill_manual(values = c("#F8766D", "#00BA38"))+
+  facet_wrap(~`Site Name`)+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 90, hjust=1))+
+  ylab("Absolute frequency")+
+  xlab("Time bins")+
+  ggtitle("Absolute frequency of indicators through time")
+
+### FIGURE 10da--------------------------------------
+# same, smooth bars
+Datasheet_sh.pot.full.long%>%
+  filter(IND==c("High", "Low"))%>%
+  ggplot(aes(-Bin_num,SUM,fill=IND, alpha=0.7))+
+  geom_density(stat="identity")+
+  scale_fill_manual(values = c( "#00BA38","#F8766D"))+
+  scale_alpha_continuous(guide= "none")+
   facet_wrap(~`Site Name`)+
   theme_bw()+
   theme(axis.text.x = element_text(angle = 90, hjust=1))+
@@ -556,6 +674,7 @@ Datasheet_sh.pot.full.long%>%
 
 ####FIGURE 11-----------------------------------------------
 #Colmbia ind, with map
+
 pCol<-Datasheet_sh.full.long %>%
   filter(Country== "Colombia") %>%
   ggplot(aes(x = reorder(Bin_num,-Bin_num),y=SUM,fill=IND))+
@@ -588,6 +707,53 @@ pColb<-Datasheet_sh.full.long %>%
 
 
 gridExtra::grid.arrange(Colombia,pColb, ncol=2)
+
+#### FIGURE 11c-----------------------------------
+# smooth graph with factes ordered by Site Latitude
+
+# sites ordered according to lat, to sort facets in plot
+Datasheet_sh.full.long$`Site Name`<-factor(Datasheet_sh.full.long$`Site Name`)
+Datasheet_sh.full.long$`Site Name`<-fct_reorder(Datasheet_sh.full.long$`Site Name`,
+                                                -Datasheet_sh.full.long$Latitude)
+
+# plot
+pColc<-Datasheet_sh.full.long%>% 
+  filter(Country== "Colombia") %>%  
+  ggplot(aes(-Bin_num,y=SUM,fill=IND))+
+  geom_density(stat="identity")+
+  scale_fill_manual(values = c("#00BFC4", "#F8766D"))+
+  scale_alpha_continuous(guide= "none")+
+  facet_wrap(~`Site Name`)+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 90, hjust=1))+
+  ylab("Absolute frequency")+
+  xlab("Time bins")+
+  ggtitle("Absolute frequency of indicators through time")
+
+gridExtra::grid.arrange(Colombia,pColc, ncol=2)
+
+#### FIGURE 11d-----------------------------------
+# same as above, with potential food indicators
+# sites ordered according to lat, does not work in sorting facets in plot
+Datasheet_sh.pot.full.long$`Site Name`<-factor(Datasheet_sh.pot.full.long$`Site Name`)
+Datasheet_sh.pot.full.long$`Site Name`<-fct_reorder(Datasheet_sh.pot.full.long$`Site Name`,
+                                                -Datasheet_sh.pot.full.long$Latitude)
+
+pCold<-Datasheet_sh.pot.full.long%>% 
+  filter(Country== "Colombia") %>%  
+  filter(IND==c("High", "Low"))%>%
+  ggplot(aes(-Bin_num,SUM,fill=IND, alpha=0.7))+
+  geom_density(stat="identity")+
+  scale_fill_manual(values = c( "#00BA38","#F8766D"))+
+  scale_alpha_continuous(guide= "none")+
+  facet_wrap(~`Site Name`)+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 90, hjust=1))+
+  ylab("Absolute frequency")+
+  xlab("Time bins")+
+  ggtitle("Absolute frequency of indicators through time")
+
+gridExtra::grid.arrange(Colombia,pCold, ncol=2)
 
 ####FIGURE 12-----------------------------------------------
 #for Venezuela
@@ -623,6 +789,42 @@ pVenb<-Datasheet_sh.full.long %>%
 
 gridExtra::grid.arrange(Venezuela,pVenb, ncol=2)
 
+### FIGURE 12c----------------------------------------------
+# smooth graph
+pVenc<-Datasheet_sh.full.long%>% 
+  filter(Country== "Venezuela") %>%  
+  ggplot(aes(-Bin_num,y=SUM,fill=IND))+
+  geom_density(stat="identity")+
+  scale_fill_manual(values = c("#00BFC4", "#F8766D"))+
+  scale_alpha_continuous(guide= "none")+
+  facet_wrap(~`Site Name`, ncol = 1)+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 90, hjust=1))+
+  ylab("Absolute frequency")+
+  xlab("Time bins")+
+  ggtitle("Absolute frequency of indicators through time")
+
+gridExtra::grid.arrange(Venezuela,pVenc, ncol=2)
+
+#### FIGURE 12d-----------------------------------
+# same as above, with potential food indicators
+
+pVend<-Datasheet_sh.pot.full.long%>% 
+  filter(Country== "Venezuela") %>%  
+  filter(IND==c("High", "Low"))%>%
+  ggplot(aes(-Bin_num,SUM,fill=IND, alpha=0.7))+
+  geom_density(stat="identity")+
+  scale_fill_manual(values = c( "#00BA38","#F8766D"))+
+  scale_alpha_continuous(guide= "none")+
+  facet_wrap(~`Site Name`, ncol=1)+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 90, hjust=1))+
+  ylab("Absolute frequency")+
+  xlab("Time bins")+
+  ggtitle("Absolute frequency of indicators through time")
+
+gridExtra::grid.arrange(Venezuela,pVend, ncol=2)
+
 #### FIGURE 13-----------------------------------------------
 #for Ecuador
 peC<-Datasheet_sh.full.long %>%
@@ -657,6 +859,42 @@ pEcb<-Datasheet_sh.full.long %>%
 
 gridExtra::grid.arrange(Ecuador,pEcb, ncol=2)
 
+#### FIGURE 13c-------------------------------------------
+#smooth graph
+pEcc<-Datasheet_sh.full.long%>% 
+  filter(Country== "Ecuador") %>%  
+  ggplot(aes(-Bin_num,y=SUM,fill=IND))+
+  geom_density(stat="identity")+
+  scale_fill_manual(values = c("#00BFC4", "#F8766D"))+
+  scale_alpha_continuous(guide= "none")+
+  facet_wrap(~`Site Name`)+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 90, hjust=1))+
+  ylab("Absolute frequency")+
+  xlab("Time bins")+
+  ggtitle("Absolute frequency of indicators through time")
+
+gridExtra::grid.arrange(Ecuador,pEcc, ncol=2)
+
+#### FIGURE 13d-----------------------------------
+# same as above, with potential food indicators
+
+pEcd<-Datasheet_sh.pot.full.long%>% 
+  filter(Country== "Ecuador") %>%  
+  filter(IND==c("High", "Low"))%>%
+  ggplot(aes(-Bin_num,SUM,fill=IND, alpha=0.7))+
+  geom_density(stat="identity")+
+  scale_fill_manual(values = c( "#00BA38","#F8766D"))+
+  scale_alpha_continuous(guide= "none")+
+  facet_wrap(~`Site Name`)+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 90, hjust=1))+
+  ylab("Absolute frequency")+
+  xlab("Time bins")+
+  ggtitle("Absolute frequency of indicators through time")
+
+gridExtra::grid.arrange(Ecuador,pEcd, ncol=2)
+
 #### FIGURE 14-----------------------------------------------
 #for sites less than 2k mt altitude
 p2k<-Datasheet_sh.full.long %>%
@@ -689,6 +927,42 @@ p2kb<-Datasheet_sh.full.long %>%
   ggtitle("Absolute frequency of indicators through time")
 
 gridExtra::grid.arrange(Tkmap,p2kb, ncol=2)
+
+
+#### FIGURE 14c-----------------------------------------
+p2kc<-Datasheet_sh.full.long %>%
+  filter(Altitude < 2000) %>%
+  ggplot(aes(-Bin_num,y=SUM,fill=IND))+
+  geom_density(stat="identity")+
+  scale_fill_manual(values = c("#00BFC4", "#F8766D"))+
+  scale_alpha_continuous(guide= "none")+
+  facet_wrap(~`Site Name`, ncol=2)+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 90, hjust=1))+
+  ylab("Absolute frequency")+
+  xlab("Time bins")+
+  ggtitle("Absolute frequency of indicators through time")
+
+gridExtra::grid.arrange(Tkmap,p2kc, ncol=2)
+
+### FIGURE 14d----------------------------------------------
+p2kd<-Datasheet_sh.pot.full.long %>%
+  filter(Altitude < 2000) %>%
+  filter(IND==c("High", "Low"))%>%
+  ggplot(aes(-Bin_num,y=SUM,fill=IND,alpha=0.7))+
+  geom_density(stat="identity")+
+  scale_fill_manual(values = c( "#00BA38","#F8766D"))+
+  scale_alpha_continuous(guide= "none")+
+  facet_wrap(~`Site Name`)+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 90, hjust=1))+
+  ylab("Absolute frequency")+
+  xlab("Time bins")+
+  ggtitle("Absolute frequency of indicators through time")
+
+gridExtra::grid.arrange(Tkmap,p2kd, ncol=2)
+
+
 #### FIGURE 15------------------------------------------
 p3k<-Datasheet_sh.full.long %>%
   filter(Altitude %in% 2000:3000) %>%
@@ -719,6 +993,39 @@ p3kb<-Datasheet_sh.full.long %>%
   ggtitle("Absolute frequency of indicators through time")
 
 gridExtra::grid.arrange(Trkmap,p3kb, ncol=2)
+
+### FIGURE 15c------------------------------------
+p3kc<-Datasheet_sh.full.long %>%
+  filter(Altitude %in% 2000:3000) %>%
+  ggplot(aes(-Bin_num,y=SUM,fill=IND))+
+  geom_density(stat="identity")+
+  scale_fill_manual(values = c("#00BFC4", "#F8766D"))+
+  scale_alpha_continuous(guide= "none")+
+  facet_wrap(~`Site Name`, ncol=2)+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 90, hjust=1))+
+  ylab("Absolute frequency")+
+  xlab("Time bins")+
+  ggtitle("Absolute frequency of indicators through time")
+
+gridExtra::grid.arrange(Trkmap,p3kc, ncol=2)
+
+### FIGURE 15d----------------------------------------------
+p3kd<-Datasheet_sh.pot.full.long %>%
+  filter(Altitude %in% 2000:3000) %>%
+  filter(IND==c("High", "Low"))%>%
+  ggplot(aes(-Bin_num,y=SUM,fill=IND,alpha=0.7))+
+  geom_density(stat="identity")+
+  scale_fill_manual(values = c( "#00BA38","#F8766D"))+
+  scale_alpha_continuous(guide= "none")+
+  facet_wrap(~`Site Name`)+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 90, hjust=1))+
+  ylab("Absolute frequency")+
+  xlab("Time bins")+
+  ggtitle("Absolute frequency of indicators through time")
+
+gridExtra::grid.arrange(Trkmap,p3kd, ncol=2)
 
 #### FIGURE 16-------------------------------------------
 p4k<-Datasheet_sh.full.long %>%
@@ -751,6 +1058,39 @@ p4kb<-Datasheet_sh.full.long %>%
 
 gridExtra::grid.arrange(Fkmap,p4kb, ncol=2)
 
+### FIGURE 16c-----------------------------------------------
+p4kc<-Datasheet_sh.full.long %>%
+  filter(Altitude %in% 3000:4215) %>%
+  ggplot(aes(-Bin_num,y=SUM,fill=IND))+
+  geom_density(stat="identity")+
+  scale_fill_manual(values = c("#00BFC4", "#F8766D"))+
+  scale_alpha_continuous(guide= "none")+
+  facet_wrap(~`Site Name`, ncol=2)+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 90, hjust=1))+
+  ylab("Absolute frequency")+
+  xlab("Time bins")+
+  ggtitle("Absolute frequency of indicators through time")
+
+gridExtra::grid.arrange(Fkmap,p4kc, ncol=2)
+
+### FIGURE 16d----------------------------------------------
+p4kd<-Datasheet_sh.pot.full.long %>%
+  filter(Altitude %in% 3000:4215) %>%
+  filter(IND==c("High", "Low"))%>%
+  ggplot(aes(-Bin_num,y=SUM,fill=IND,alpha=0.7))+
+  geom_density(stat="identity")+
+  scale_fill_manual(values = c( "#00BA38","#F8766D"))+
+  scale_alpha_continuous(guide= "none")+
+  facet_wrap(~`Site Name`)+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 90, hjust=1))+
+  ylab("Absolute frequency")+
+  xlab("Time bins")+
+  ggtitle("Absolute frequency of indicators through time")
+
+gridExtra::grid.arrange(Fkmap,p4kd, ncol=2)
+
 ####FIGURE 17----------------------------------------------------
 #variation in percent of direct/indirect
 ggplot(data=Datasheet_sh.full.long,
@@ -763,6 +1103,19 @@ ggplot(data=Datasheet_sh.full.long,
   ylab("%")+
   xlab("Time bins")+
   ggtitle("Proportion of indirect/direct indicators through time")
+
+####FIGURE 17b----------------------------------------------------
+#variation in percent of ind with food potential
+ggplot(data=Datasheet_sh.pot.full.long,
+       aes(x = reorder(Bin_num,-Bin_num),y=SUM,fill=IND))+
+  geom_bar(stat = "identity",width = 0.5, position = "fill")+
+  scale_fill_manual(values = c("#619CFF","#00BA38","#F8766D"))+
+  facet_wrap(~`Site Name`)+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 90, hjust=1))+
+  ylab("%")+
+  xlab("Time bins")+
+  ggtitle("Proportion of indicators with no/low/high food potential through time")
 
 #### FIGURE 18-----------------------------------------------
 ## trend of each indicator through time
@@ -819,11 +1172,17 @@ Amap+
 
 #### FIGURE 21--------------------------------------
 ## map of sites with direct indicators through time
+
+#new df with column for Colors
+DFcol<-Datasheet_sh.full.long%>%
+  filter(IND =="Direct")%>%
+  mutate(Color = ifelse(SUM > 0, "red", "black"))
+
 Amap+
-  geom_point(data=Datasheet_sh.full.long%>%
-               filter(IND=="Direct")%>%
-               filter(SUM!=0),
-             aes(x= Longitude, y=Latitude),color="red")+
+  geom_point(data= DFcol,
+             aes(x= Longitude, y=Latitude, color= DFcol$Color),
+             alpha=0.3)+
+  scale_color_identity()+
   facet_wrap(~Bin_num)+
   labs(color="Indicator")+
   ggtitle("Sites with direct indicators through time")
@@ -833,19 +1192,33 @@ Amap+
 ## map of sites with direct indicators and their abundances
 ##and how changed through time
 Amap+
-  geom_point(data=Datasheet_sh.full.long%>%
-               filter(IND=="Direct")%>%
-               filter(SUM!=0),
-             aes(x= Longitude, y=Latitude, size=SUM),
-             alpha=0.3, color="red")+
-  geom_text(data=Datasheet_sh.full.long%>%
-              filter(IND=="Direct")%>%
-              filter(SUM!=0), 
-            aes(x = Longitude + .001, y = Latitude, label=`Site Name`),
-            size=1, hjust=-0.1, vjust=0)+
+  geom_point(data= DFcol,
+             aes(x= Longitude, y=Latitude, color= DFcol$Color, size=SUM),
+             alpha=0.3)+
+  scale_color_identity()+
   facet_wrap(~Bin_num)+
   labs(size="Number of indicators found")+
   ggtitle("Map of direct indicators through time")
+
+# FIGURE 23----------------------------------
+# map for potential food indicators
+Amap+
+  geom_point(data=Datasheet_sh.pot.full.long%>%
+               filter(IND=="High")%>%
+               filter(SUM!=0),
+             aes(x= Longitude, y=Latitude),color="red")+
+  ggtitle("Sites with indicators with high food potential")
+
+# FIGURE 24-----------------------------------------------
+## map for potential food indicators through time
+Amap+
+  geom_point(data=Datasheet_sh.pot.full.long%>%
+               filter(IND=="High")%>%
+               filter(SUM!=0),
+             aes(x= Longitude, y=Latitude),color="red")+
+  facet_wrap(~Bin_num)+
+  labs(color="Indicator")+
+  ggtitle("Indicators with high food potential through time")
 
 
 

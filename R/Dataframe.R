@@ -123,6 +123,11 @@ Human_indicators[48,"Indicator"]<-"Indirect"
 
 colnames(Human_indicators)[4]<-"Potential food source"
 
+to_replaceI<-c("HIGH","LOW","Low","NO")
+with_thisI<-c("high", "low","low", "no")
+Human_indicators$`Potential food source`<-Human_indicators$`Potential food source`%>%
+  plyr::mapvalues(to_replaceI,with_thisI)
+
 write_xlsx(Human_indicators,"Human_indicators.xlsx")
 
 # Change Ind names in Datasheet shaved (match names in Human_indicators)
