@@ -91,6 +91,9 @@ DF.zeros<-(DF.indicators.SUM%>%filter(IN==0))
 Todrop<-as.vector(DF.zeros$IN.name)
 Datasheet_shaved<-Datasheet_shaved[,!names(Datasheet_shaved)%in% Todrop]
 
+#remove charcoal (has to be analyzed separatedly)
+Datasheet_shaved$Charcoal<- NULL
+
 
 #add columns to Datasheet_shaved-------
 #records lenght
@@ -112,14 +115,14 @@ write_xlsx(Datasheet,"Datasheet.xlsx")
 # Import and adjust dataframe with right indicators-------
 Human_indicators_original <- read_excel("data/02_Human indicators_V2.xlsx")
 
-Human_indicators<-Human_indicators_original[-c(2,8,13,14,22,68),]%>%
+Human_indicators<-Human_indicators_original[-c(2,8,13,14,22,25,68),]%>%
   select(c("Group (Taxa)",
            "Family",
            "Indicator",
            "Potential food source (no/low/high)",
            "North Andean fossil records? [yes/no]" ))
 
-Human_indicators[48,"Indicator"]<-"Indirect"
+Human_indicators[47,"Indicator"]<-"Indirect"
 
 colnames(Human_indicators)[4]<-"Potential food source"
 

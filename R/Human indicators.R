@@ -14,13 +14,12 @@
 
 
 # ---------------------------------------------
-#TODO: charcoal out from indicators
-# TODO: FIG 5, 6, 6B, 6C color boxes for Country, order by latitude, sign for hiatuses,
-# display lenght of cores or relative frequency (also for fig 7)
-# new version with numbers instead of indicators name, split per Country
+# TODO: FROM FIG 10 color boxes for Country, order by latitude, 
+# fig with ind facets: new version with numbers instead of indicators name, split per Country
 # TODO: faceted map with less colored background (shades for mountains)
 # faceted map showing only "red" points, side by side with big map with all sites
-# TODO: set fig 3 as timeline (inverted axis, arrow)
+# TODO: add Dodonea:Gelasinospora to Rio Timbio to all Datasheet (and control if other columns left open)
+# TODO: climate chart
 
 # Packages
 library(readxl)
@@ -30,6 +29,10 @@ library(OpenStreetMap)
 library(ggmap)
 library(plotly)
 library (magick)
+library(gtable)
+library(grid)
+library(gridExtra)
+library(RColorBrewer)
 
 # Load data
 Datasheet <- read_excel("data/Datasheet.xlsx")
@@ -45,6 +48,8 @@ ToTable<-Datasheet_shaved%>%
 
 # order df according to Country
 ToTable<-ToTable[order(ToTable$Country),]
+grid.newpage()
+grid.table(ToTable)
 
 # export toTable in excel
 write_xlsx(ToTable,"Table_01.xlsx")
@@ -163,10 +168,16 @@ Fkmap<- ggmap(Andes)+
 
 ####FIGURE 2-------------------------------
 ##time span of each site
+#see which colours are colorblind friendly
+display.brewer.all(colorblindFriendly = TRUE)
+display.brewer.pal(n = 3, name = 'Greys')
+brewer.pal(n = 3, name = 'Greys')
 
 #with Datasheet_shaved
 ggplot(Datasheet_shaved)+
-  geom_bar( aes(x=reorder(`Site Name`,Latitude), fill=Country))+
+  geom_bar( aes(x=reorder(`Site Name`,Latitude), fill=Country),colour="black")+
+  scale_fill_manual(values=c("#BDBDBD","#636363","#F0F0F0"))+
+  theme_bw()+
   theme(axis.text.y  = element_text( hjust=1))+
   theme(axis.title.x = element_blank(),
         axis.text.x =element_blank(),
@@ -212,7 +223,7 @@ ggplot(Datasheet_shaved)+
  # calculate number of times (i.e num of bins) taxa are found per site
  IndxSite<- reshape2::melt(Datasheet_sh.ind.full) %>%
    group_by(`Site Name`,variable) %>%
-   summarise(Count = sum(value)) 
+   summarise(Count = sum(value, na.rm = T)) 
  
  # print 1 if taxa are found in a site (despite the number of bins where it is found) 
  IndxSite$Pres<-ifelse(IndxSite$Count==0,0,1)
@@ -234,7 +245,7 @@ ggplot(Datasheet_shaved)+
  
  # plot
  IndxSite%>%
- ggplot(aes(x=reorder(variable,TotPres),y=Pres,fill=Ind))+
+ ggplot(aes(x=reorder(variable,TotPres),y=TotPres,fill=Ind))+
    geom_bar(stat = "identity")+
    theme_bw()+
    theme(axis.text.x = element_text(angle = 70, hjust=1),
@@ -264,34 +275,186 @@ ggplot(Datasheet_shaved)+
  
  Datasheet_sh.full<- bind_cols(Datasheet_shaved,DF_sh.tot)
  
- # plot
- Datasheet_sh.full %>% 
-   ggplot(aes(x=reorder(Bin_num,-Bin_num), y=Sum_total)) +  
-   geom_bar(stat = "identity",width = 0.5) +
-   facet_wrap(~`Site Name`) +
-   theme_bw() +
-   theme(axis.text.x = element_text(angle = 90, hjust=1)) +
-   geom_text(aes(label=Sum_total), vjust=-0.3, size=3) +
-   ylab("Absolute frequency")+
-   xlab("Time bins")+
-   ggtitle("Absolute frequency of indicators through time per site")
- 
+# new column for labels
+Datasheet_sh.full$ForLabs<-Datasheet_sh.full$Sum_total
+# change 0 in H (except for two in Rio Timbio, real absences) 
+Datasheet_sh.full$ForLabs[Datasheet_sh.full$ForLabs==0]<-"H"
+Datasheet_sh.full[123:124,"ForLabs"]<-"0"
+# to use later in other plots
+H<-Datasheet_sh.full%>%
+  filter(ForLabs=="H")
+
+# sites ordered according to lat, to sort facets in plot
+Datasheet_sh.full$`Site Name`<-factor(Datasheet_sh.full$`Site Name`)
+Datasheet_sh.full$`Site Name`<-fct_reorder(Datasheet_sh.full$`Site Name`,
+                                                -Datasheet_sh.full$Latitude)
+
+
+   p <- ggplot(data= Datasheet_sh.full, 
+               aes(x=reorder(Bin_num,-Bin_num), y=Sum_total)) +  
+     geom_bar(stat = "identity",width = 0.5) +
+     facet_wrap(~`Site Name`) +
+     theme_bw() +
+     theme(axis.text.x = element_text(angle = 90, hjust=1)) +
+     geom_text(aes(label=ForLabs), vjust=-0.3, size=3) +
+     ylab("Absolute frequency")+
+     xlab("Time bins")+
+     ggtitle("Absolute frequency of indicators through time per site")
+   
+# to color facet according to Country   
+g_1 <- grid.force(ggplotGrob(p))   #df to see the right path of text title
+grobs_df <- do.call(cbind.data.frame, grid.ls(g_1, print = FALSE)) 
+grobs_df$gPath_full <- paste(grobs_df$gPath, grobs_df$name, sep = "::") # Build optimal gPaths that will be later used to identify grobs and edit them
+grobs_df$gPath_full <- gsub(pattern = "layout::", 
+                            replacement = "", 
+                            x = grobs_df$gPath_full, 
+                            fixed = TRUE)
+
+strip_bg_gpath <- grobs_df$gPath_full[grepl(pattern = ".*strip\\.background.*", # Get the gPaths of the strip background grob
+                                            x = grobs_df$gPath_full)]
+strip_txt_gpath <- grobs_df$gPath_full[grepl(pattern = "strip.*titleGrob.*text.*", # Get the gPaths of the strip titles
+                                             x = grobs_df$gPath_full)]
+
+fills <-  c(rep("#636363",17), # vector of colors to fill rectangles
+            rep("#BDBDBD",2),
+            rep("#636363",5),
+            rep( "#BDBDBD",7),
+            rep( "#F0F0F0",2),
+            rep( "#BDBDBD",5)) 
+
+txt_colors <- c(rep("white",17), # vector of colors for text
+         rep("black",2),
+         rep("white",5),
+         rep( "black",7),
+         rep( "black",2),
+         rep( "black",5))
+
+for (i in 1:length(strip_bg_gpath)){
+  g_1 <- editGrob(grob = g_1, gPath = strip_bg_gpath[i], gp = gpar(fill = fills[i]))
+  g_1 <- editGrob(grob = g_1, gPath = strip_txt_gpath[i], gp = gpar(col = txt_colors[i]))
+} # Edit the grobs
+
+
+grid.newpage(); grid.draw(g_1) # Draw the edited plot
+
 #### FIGURE 6 ---------------------------------
 ## number of times human indicators are counted in each site
+# order sites by lat   
+Datasheet_sh.ind.full$Latitude<-Datasheet_sh.full$Latitude  
+Datasheet_sh.ind.full$`Site Name`<-factor(Datasheet_sh.ind.full$`Site Name`)
+Datasheet_sh.ind.full$`Site Name`<-fct_reorder(Datasheet_sh.ind.full$`Site Name`,
+                                              -Datasheet_sh.ind.full$Latitude)
+   
 
- reshape2::melt(Datasheet_sh.ind.full) %>%
+ p<-reshape2::melt(Datasheet_sh.ind.full%>%
+                      select(-c("Latitude"))) %>%
    group_by(`Site Name`,variable) %>%
    summarise(Count = sum(value, na.rm = T))%>%
    ggplot(aes(x=variable,y=Count))+
    geom_bar(stat = "identity")+
    facet_wrap(~`Site Name`)+
+   theme_bw() +
    theme(axis.text.x = element_text(angle = 90, hjust=1))+
-   ggtitle("Number of times Indicators are found per Site")
+   ggtitle("Number of times Indicators are found per Site",
+           subtitle = "In how many time bins each indicator was found, per site")
+   
+ g_1 <- grid.force(ggplotGrob(p))   #df to see the right path of text title
+ grobs_df <- do.call(cbind.data.frame, grid.ls(g_1, print = FALSE)) 
+ grobs_df$gPath_full <- paste(grobs_df$gPath, grobs_df$name, sep = "::") # Build optimal gPaths that will be later used to identify grobs and edit them
+ grobs_df$gPath_full <- gsub(pattern = "layout::", 
+                             replacement = "", 
+                             x = grobs_df$gPath_full, 
+                             fixed = TRUE)
+ 
+ strip_bg_gpath <- grobs_df$gPath_full[grepl(pattern = ".*strip\\.background.*", # Get the gPaths of the strip background grob
+                                             x = grobs_df$gPath_full)]
+ strip_txt_gpath <- grobs_df$gPath_full[grepl(pattern = "strip.*titleGrob.*text.*", # Get the gPaths of the strip titles
+                                              x = grobs_df$gPath_full)]
+ 
+ fills <-  c(rep("#636363",17), # vector of colors to fill rectangles
+             rep("#BDBDBD",2),
+             rep("#636363",5),
+             rep( "#BDBDBD",7),
+             rep( "#F0F0F0",2),
+             rep( "#BDBDBD",5)) 
+ 
+ txt_colors <- c(rep("white",17), # vector of colors for text
+                 rep("black",2),
+                 rep("white",5),
+                 rep( "black",7),
+                 rep( "black",2),
+                 rep( "black",5))
+ 
+ for (i in 1:length(strip_bg_gpath)){
+   g_1 <- editGrob(grob = g_1, gPath = strip_bg_gpath[i], gp = gpar(fill = fills[i]))
+   g_1 <- editGrob(grob = g_1, gPath = strip_txt_gpath[i], gp = gpar(col = txt_colors[i]))
+ } # Edit the grobs
+ 
+ 
+ grid.newpage(); grid.draw(g_1) # Draw the edited plot
+ 
+#### FIGURE 6a-----------------------------
+ ## same with relative frequencies of indicators (n bins ind found/n bins covered from that site)
+ #df with number of bins for each site (excluding bins where hiatuses)
+ TotBins=as.data.frame (table(Datasheet_sh.full%>%
+                               filter(ForLabs!="H")%>%
+                               select(`Site Name`)))
+ 
+ p<-reshape2::melt(Datasheet_sh.ind.full%>%
+                     select(-c("Latitude"))) %>%
+   group_by(`Site Name`,variable) %>%
+   summarise(Count = sum(value, na.rm = T))%>%
+   mutate(TotBins=TotBins$Freq
+          [match(`Site Name`,TotBins$Var1)])%>%
+   mutate(Freq=Count/TotBins)%>%
+   ggplot(aes(x=variable,y=Freq))+
+   geom_bar(stat = "identity")+
+   facet_wrap(~`Site Name`)+
+   theme_bw() +
+   theme(axis.text.x = element_text(angle = 90, hjust=1))+
+   ggtitle("Relative frequency of indicators",
+           subtitle = "Proportion of number of bins indicators found/ number of bins covered in a record" )
+ 
+ g_1 <- grid.force(ggplotGrob(p))   #df to see the right path of text title
+ grobs_df <- do.call(cbind.data.frame, grid.ls(g_1, print = FALSE)) 
+ grobs_df$gPath_full <- paste(grobs_df$gPath, grobs_df$name, sep = "::") # Build optimal gPaths that will be later used to identify grobs and edit them
+ grobs_df$gPath_full <- gsub(pattern = "layout::", 
+                             replacement = "", 
+                             x = grobs_df$gPath_full, 
+                             fixed = TRUE)
+ 
+ strip_bg_gpath <- grobs_df$gPath_full[grepl(pattern = ".*strip\\.background.*", # Get the gPaths of the strip background grob
+                                             x = grobs_df$gPath_full)]
+ strip_txt_gpath <- grobs_df$gPath_full[grepl(pattern = "strip.*titleGrob.*text.*", # Get the gPaths of the strip titles
+                                              x = grobs_df$gPath_full)]
+ 
+ fills <-  c(rep("#636363",17), # vector of colors to fill rectangles
+             rep("#BDBDBD",2),
+             rep("#636363",5),
+             rep( "#BDBDBD",7),
+             rep( "#F0F0F0",2),
+             rep( "#BDBDBD",5)) 
+ 
+ txt_colors <- c(rep("white",17), # vector of colors for text
+                 rep("black",2),
+                 rep("white",5),
+                 rep( "black",7),
+                 rep( "black",2),
+                 rep( "black",5))
+ 
+ for (i in 1:length(strip_bg_gpath)){
+   g_1 <- editGrob(grob = g_1, gPath = strip_bg_gpath[i], gp = gpar(fill = fills[i]))
+   g_1 <- editGrob(grob = g_1, gPath = strip_txt_gpath[i], gp = gpar(col = txt_colors[i]))
+ } # Edit the grobs
+ 
+ 
+ grid.newpage(); grid.draw(g_1) # Draw the edited plot
  
 #### FIGURE 6b--------------------------------------
  # distinguish between direct and indirect
  
- reshape2::melt(Datasheet_sh.ind.full) %>%
+p<- reshape2::melt(Datasheet_sh.ind.full%>%
+                  select(-c("Latitude"))) %>%
    group_by(`Site Name`,variable) %>%
    summarise(Count = sum(value, na.rm = T))%>%
    mutate(Ind=Human_indicators$Indicator
@@ -299,8 +462,100 @@ ggplot(Datasheet_shaved)+
    ggplot(aes(x=variable,y=Count, fill=Ind))+
    geom_bar(stat = "identity")+
    facet_wrap(~`Site Name`)+
+   theme_bw()+
    theme(axis.text.x = element_text(angle = 90, hjust=1))+
-   ggtitle("Number of times Indicators are found per Site") 
+   ggtitle("Number of times Indicators are found per Site",
+           subtitle = "In how many time bins each indicator was found, per site") 
+
+ g_1 <- grid.force(ggplotGrob(p))   #df to see the right path of text title
+ grobs_df <- do.call(cbind.data.frame, grid.ls(g_1, print = FALSE)) 
+ grobs_df$gPath_full <- paste(grobs_df$gPath, grobs_df$name, sep = "::") # Build optimal gPaths that will be later used to identify grobs and edit them
+ grobs_df$gPath_full <- gsub(pattern = "layout::", 
+                             replacement = "", 
+                             x = grobs_df$gPath_full, 
+                             fixed = TRUE)
+ 
+ strip_bg_gpath <- grobs_df$gPath_full[grepl(pattern = ".*strip\\.background.*", # Get the gPaths of the strip background grob
+                                             x = grobs_df$gPath_full)]
+ strip_txt_gpath <- grobs_df$gPath_full[grepl(pattern = "strip.*titleGrob.*text.*", # Get the gPaths of the strip titles
+                                              x = grobs_df$gPath_full)]
+ 
+ fills <-  c(rep("#636363",17), # vector of colors to fill rectangles
+             rep("#BDBDBD",2),
+             rep("#636363",5),
+             rep( "#BDBDBD",7),
+             rep( "#F0F0F0",2),
+             rep( "#BDBDBD",5)) 
+ 
+ txt_colors <- c(rep("white",17), # vector of colors for text
+                 rep("black",2),
+                 rep("white",5),
+                 rep( "black",7),
+                 rep( "black",2),
+                 rep( "black",5))
+ 
+ for (i in 1:length(strip_bg_gpath)){
+   g_1 <- editGrob(grob = g_1, gPath = strip_bg_gpath[i], gp = gpar(fill = fills[i]))
+   g_1 <- editGrob(grob = g_1, gPath = strip_txt_gpath[i], gp = gpar(col = txt_colors[i]))
+ } # Edit the grobs
+ 
+ 
+ grid.newpage(); grid.draw(g_1) # Draw the edited plot
+ 
+ #### FIGURE 6ba--------------------------------------
+ # distinguish between direct and indirect
+ 
+ p<- reshape2::melt(Datasheet_sh.ind.full%>%
+                      select(-c("Latitude"))) %>%
+   group_by(`Site Name`,variable) %>%
+   summarise(Count = sum(value, na.rm = T))%>%
+   mutate(TotBins=TotBins$Freq
+          [match(`Site Name`,TotBins$Var1)])%>%
+   mutate(Freq=Count/TotBins)%>%
+   mutate(Ind=Human_indicators$Indicator
+          [match(variable,Human_indicators$`Group (Taxa)`)])%>%
+   ggplot(aes(x=variable,y=Freq, fill=Ind))+
+   geom_bar(stat = "identity")+
+   facet_wrap(~`Site Name`)+
+   theme_bw()+
+   theme(axis.text.x = element_text(angle = 90, hjust=1))+
+   ggtitle("Number of times Indicators are found per Site",
+           subtitle = "Proportion of number of bins indicators found/ number of bins covered in a record" )
+ 
+ g_1 <- grid.force(ggplotGrob(p))   #df to see the right path of text title
+ grobs_df <- do.call(cbind.data.frame, grid.ls(g_1, print = FALSE)) 
+ grobs_df$gPath_full <- paste(grobs_df$gPath, grobs_df$name, sep = "::") # Build optimal gPaths that will be later used to identify grobs and edit them
+ grobs_df$gPath_full <- gsub(pattern = "layout::", 
+                             replacement = "", 
+                             x = grobs_df$gPath_full, 
+                             fixed = TRUE)
+ 
+ strip_bg_gpath <- grobs_df$gPath_full[grepl(pattern = ".*strip\\.background.*", # Get the gPaths of the strip background grob
+                                             x = grobs_df$gPath_full)]
+ strip_txt_gpath <- grobs_df$gPath_full[grepl(pattern = "strip.*titleGrob.*text.*", # Get the gPaths of the strip titles
+                                              x = grobs_df$gPath_full)]
+ 
+ fills <-  c(rep("#636363",17), # vector of colors to fill rectangles
+             rep("#BDBDBD",2),
+             rep("#636363",5),
+             rep( "#BDBDBD",7),
+             rep( "#F0F0F0",2),
+             rep( "#BDBDBD",5)) 
+ 
+ txt_colors <- c(rep("white",17), # vector of colors for text
+                 rep("black",2),
+                 rep("white",5),
+                 rep( "black",7),
+                 rep( "black",2),
+                 rep( "black",5))
+ 
+ for (i in 1:length(strip_bg_gpath)){
+   g_1 <- editGrob(grob = g_1, gPath = strip_bg_gpath[i], gp = gpar(fill = fills[i]))
+   g_1 <- editGrob(grob = g_1, gPath = strip_txt_gpath[i], gp = gpar(col = txt_colors[i]))
+ } # Edit the grobs
+ 
+ 
+ grid.newpage(); grid.draw(g_1) # Draw the edited plot 
  
 #### FIGURE 6c------------------------------------
 # distinguish beteween different potential food source
@@ -314,10 +569,15 @@ ggplot(Datasheet_shaved)+
    pull(Group..Taxa.) #create vector indicators (now ordered)
  
 Datasheet_sh.ind.full.sort<-Datasheet_sh.ind.full[,IndxPot]%>%
-  mutate(`Site Name`=Datasheet_shaved$`Site Name`)
+  mutate(`Site Name`=Datasheet_shaved$`Site Name`)%>%
+  mutate(Latitude=Datasheet_sh.full$Latitude ) 
 
+Datasheet_sh.ind.full.sort$`Site Name`<-factor(Datasheet_sh.ind.full.sort$`Site Name`)
+Datasheet_sh.ind.full.sort$`Site Name`<-fct_reorder(Datasheet_sh.ind.full.sort$`Site Name`,
+                                               -Datasheet_sh.ind.full$Latitude)
 #plot
- reshape2::melt(Datasheet_sh.ind.full.sort) %>%
+p<- reshape2::melt(Datasheet_sh.ind.full.sort%>%
+                  select(-c("Latitude"))) %>%
    group_by(`Site Name`,variable) %>%
    summarise(Count = sum(value, na.rm = T))%>%
    mutate(Pot=Human_indicators$`Potential food source`
@@ -326,20 +586,138 @@ Datasheet_sh.ind.full.sort<-Datasheet_sh.ind.full[,IndxPot]%>%
    geom_bar(stat = "identity")+
    facet_wrap(~`Site Name`)+
    theme(axis.text.x = element_text(angle = 90, hjust=1))+
-   ggtitle("Number of times Indicators are found per Site") 
+   ggtitle("Number of times Indicators are found per Site",
+           subtitle = "In how many time bins each indicator was found, per site")  
+
+g_1 <- grid.force(ggplotGrob(p))   #df to see the right path of text title
+grobs_df <- do.call(cbind.data.frame, grid.ls(g_1, print = FALSE)) 
+grobs_df$gPath_full <- paste(grobs_df$gPath, grobs_df$name, sep = "::") # Build optimal gPaths that will be later used to identify grobs and edit them
+grobs_df$gPath_full <- gsub(pattern = "layout::", 
+                            replacement = "", 
+                            x = grobs_df$gPath_full, 
+                            fixed = TRUE)
+
+strip_bg_gpath <- grobs_df$gPath_full[grepl(pattern = ".*strip\\.background.*", # Get the gPaths of the strip background grob
+                                            x = grobs_df$gPath_full)]
+strip_txt_gpath <- grobs_df$gPath_full[grepl(pattern = "strip.*titleGrob.*text.*", # Get the gPaths of the strip titles
+                                             x = grobs_df$gPath_full)]
+
+fills <-  c(rep("#636363",17), # vector of colors to fill rectangles
+            rep("#BDBDBD",2),
+            rep("#636363",5),
+            rep( "#BDBDBD",7),
+            rep( "#F0F0F0",2),
+            rep( "#BDBDBD",5)) 
+
+txt_colors <- c(rep("white",17), # vector of colors for text
+                rep("black",2),
+                rep("white",5),
+                rep( "black",7),
+                rep( "black",2),
+                rep( "black",5))
+
+for (i in 1:length(strip_bg_gpath)){
+  g_1 <- editGrob(grob = g_1, gPath = strip_bg_gpath[i], gp = gpar(fill = fills[i]))
+  g_1 <- editGrob(grob = g_1, gPath = strip_txt_gpath[i], gp = gpar(col = txt_colors[i]))
+} # Edit the grobs
+
+
+grid.newpage(); grid.draw(g_1) # Draw the edited plot 
+
+#### FIGURE 6ca----------------------------------
+# relative freq
+p<- reshape2::melt(Datasheet_sh.ind.full.sort%>%
+                     select(-c("Latitude"))) %>%
+  group_by(`Site Name`,variable) %>%
+  summarise(Count = sum(value, na.rm = T))%>%
+  mutate(TotBins=TotBins$Freq
+         [match(`Site Name`,TotBins$Var1)])%>%
+  mutate(Freq=Count/TotBins)%>%
+  mutate(Pot=Human_indicators$`Potential food source`
+         [match(variable,Human_indicators$`Group (Taxa)`)])%>%
+  ggplot(aes(x=variable,y=Freq, fill=Pot))+
+  geom_bar(stat = "identity")+
+  facet_wrap(~`Site Name`)+
+  theme(axis.text.x = element_text(angle = 90, hjust=1))+
+  ggtitle("Number of times Indicators are found per Site",
+          subtitle = "Proportion of number of bins indicators found/ number of bins covered in a record" )
+
+g_1 <- grid.force(ggplotGrob(p))   #df to see the right path of text title
+grobs_df <- do.call(cbind.data.frame, grid.ls(g_1, print = FALSE)) 
+grobs_df$gPath_full <- paste(grobs_df$gPath, grobs_df$name, sep = "::") # Build optimal gPaths that will be later used to identify grobs and edit them
+grobs_df$gPath_full <- gsub(pattern = "layout::", 
+                            replacement = "", 
+                            x = grobs_df$gPath_full, 
+                            fixed = TRUE)
+
+strip_bg_gpath <- grobs_df$gPath_full[grepl(pattern = ".*strip\\.background.*", # Get the gPaths of the strip background grob
+                                            x = grobs_df$gPath_full)]
+strip_txt_gpath <- grobs_df$gPath_full[grepl(pattern = "strip.*titleGrob.*text.*", # Get the gPaths of the strip titles
+                                             x = grobs_df$gPath_full)]
+
+fills <-  c(rep("#636363",17), # vector of colors to fill rectangles
+            rep("#BDBDBD",2),
+            rep("#636363",5),
+            rep( "#BDBDBD",7),
+            rep( "#F0F0F0",2),
+            rep( "#BDBDBD",5)) 
+
+txt_colors <- c(rep("white",17), # vector of colors for text
+                rep("black",2),
+                rep("white",5),
+                rep( "black",7),
+                rep( "black",2),
+                rep( "black",5))
+
+for (i in 1:length(strip_bg_gpath)){
+  g_1 <- editGrob(grob = g_1, gPath = strip_bg_gpath[i], gp = gpar(fill = fills[i]))
+  g_1 <- editGrob(grob = g_1, gPath = strip_txt_gpath[i], gp = gpar(col = txt_colors[i]))
+} # Edit the grobs
+
+
+grid.newpage(); grid.draw(g_1) # Draw the edited plot 
+
  
 #### FIGURE 7 ---------------------------------
 ## in which sites are which indicators found and how often? 
 
- reshape2::melt(Datasheet_sh.ind.full) %>%
-   group_by(variable,`Site Name`) %>%
-   summarise(Count = sum(value, na.rm = T)) %>%
-   ggplot(aes(x=`Site Name`,y=Count))+
-   geom_bar(stat = "identity")+
-   facet_wrap(~variable)+
-   theme_bw()+
-   theme(axis.text.x = element_text(angle = 90, hjust=1))+
-   ggtitle("Number of times Indicators are found per Site")
+reshape2::melt(Datasheet_sh.ind.full%>%
+                 select(-c("Latitude"))) %>%
+  group_by(variable,`Site Name`) %>%
+  summarise(Count = sum(value, na.rm = T)) %>%
+  mutate (Country=Datasheet_sh.full$Country
+          [match(`Site Name`, Datasheet_sh.full$`Site Name`)])%>%
+  ggplot(aes(x=`Site Name`, y=Count, fill= Country))+
+  scale_fill_manual(values = c("#BDBDBD","#636363","#F0F0F0"))+
+  geom_bar(stat = "identity",colour="black")+
+  facet_wrap(~variable)+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 90, hjust=1))+
+  ggtitle("Number of times Indicators are found per Site")
+   
+
+#### FIGURE 7a------------------------------------------
+## relative freq
+reshape2::melt(Datasheet_sh.ind.full%>%
+                 select(-c("Latitude"))) %>%
+  group_by(variable,`Site Name`) %>%
+  summarise(Count = sum(value, na.rm = T)) %>%
+  mutate(TotBins=TotBins$Freq
+         [match(`Site Name`,TotBins$Var1)])%>%
+  mutate(Freq=Count/TotBins)%>%
+  mutate (Country=Datasheet_sh.full$Country
+          [match(`Site Name`, Datasheet_sh.full$`Site Name`)])%>%
+  ggplot(aes(x=`Site Name`, y=Freq, fill= Country))+
+  scale_fill_manual(values = c("#BDBDBD","#636363","#F0F0F0"))+
+  geom_bar(stat = "identity",colour="black")+
+  facet_wrap(~variable)+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 90, hjust=1))+
+  ggtitle("Relative frequency of indicators",
+          subtitle = "For each site, percentage of bins where each indicator is found")
+
+
+  
 
 #### Analyses of direct/indirect indicators-------
  
@@ -365,12 +743,12 @@ DF_sh.Indirect<-Datasheet_sh.indicators[,names(Datasheet_sh.indicators) %in% Ind
 DF_sh.Indirect.Sum<-data.frame(SUM=apply(DF_sh.Indirect,1,FUN = function(x) sum(x,na.rm = T)))
 
 # dataframe with all metadata + sum of direct ind.+ sum of indirect ind.
-Datasheet_sh.full<- bind_cols(Datasheet_shaved,DF_sh.Direct.Sum)
+Datasheet_sh.full<- bind_cols(Datasheet_sh.full,DF_sh.Direct.Sum)
 Datasheet_sh.full<-rename(Datasheet_sh.full,"Sum_direct"="SUM")
 Datasheet_sh.full<- bind_cols(Datasheet_sh.full,DF_sh.Indirect.Sum)
 Datasheet_sh.full<-rename(Datasheet_sh.full,"Sum_indirect"="SUM")
 
-#### analyses of potential food sources
+#### analyses of potential food sources---------------
 
 High<-Human_indicators %>% 
   filter(`Potential food source`=="high") %>%
@@ -397,25 +775,67 @@ DF_sh.No.Sum <- data.frame(Sum_no=apply(DF_sh.No,1,FUN = function(x) sum(x,na.rm
 Datasheet_sh.pot.full<- bind_cols(Datasheet_shaved,
                                   DF_sh.High.Sum,
                                   DF_sh.Low.Sum,
-                                  DF_sh.No.Sum)
+                                  DF_sh.No.Sum,
+                                  Datasheet_sh.full%>%
+                                    select(ForLabs))
+
+# order sites by lat
+Datasheet_sh.pot.full$`Site Name`<-factor(Datasheet_sh.pot.full$`Site Name`)
+Datasheet_sh.pot.full$`Site Name`<-fct_reorder(Datasheet_sh.pot.full$`Site Name`,
+                                           -Datasheet_sh.full$Latitude)                        
 
 #### FIGURE 8-------------------------------------------
 ##Absolute frequency of direct indicators through time per site 
 
-Datasheet_sh.full %>% 
+p<-Datasheet_sh.full %>% 
   ggplot(aes(x=reorder(Bin_num,-Bin_num), y=Sum_direct)) +  
   geom_bar(stat = "identity",width = 0.5) +
   facet_wrap(~`Site Name`) +
   theme_bw() +
   theme(axis.text.x = element_text(angle = 90, hjust=1)) +
-  geom_text(aes(label=Sum_direct), vjust=-0.3, size=3) +
+  geom_text(aes(label= ifelse(ForLabs=="H","H",Sum_direct)), vjust=-0.3, size=3) +
   ylab("Absolute frequency")+
   xlab("Time bins")+
   ggtitle("Absolute frequency of direct indicators through time per site")
 
+g_1 <- grid.force(ggplotGrob(p))   #df to see the right path of text title
+grobs_df <- do.call(cbind.data.frame, grid.ls(g_1, print = FALSE)) 
+grobs_df$gPath_full <- paste(grobs_df$gPath, grobs_df$name, sep = "::") # Build optimal gPaths that will be later used to identify grobs and edit them
+grobs_df$gPath_full <- gsub(pattern = "layout::", 
+                            replacement = "", 
+                            x = grobs_df$gPath_full, 
+                            fixed = TRUE)
+
+strip_bg_gpath <- grobs_df$gPath_full[grepl(pattern = ".*strip\\.background.*", # Get the gPaths of the strip background grob
+                                            x = grobs_df$gPath_full)]
+strip_txt_gpath <- grobs_df$gPath_full[grepl(pattern = "strip.*titleGrob.*text.*", # Get the gPaths of the strip titles
+                                             x = grobs_df$gPath_full)]
+
+fills <-  c(rep("#636363",17), # vector of colors to fill rectangles
+            rep("#BDBDBD",2),
+            rep("#636363",5),
+            rep( "#BDBDBD",7),
+            rep( "#F0F0F0",2),
+            rep( "#BDBDBD",5)) 
+
+txt_colors <- c(rep("white",17), # vector of colors for text
+                rep("black",2),
+                rep("white",5),
+                rep( "black",7),
+                rep( "black",2),
+                rep( "black",5))
+
+for (i in 1:length(strip_bg_gpath)){
+  g_1 <- editGrob(grob = g_1, gPath = strip_bg_gpath[i], gp = gpar(fill = fills[i]))
+  g_1 <- editGrob(grob = g_1, gPath = strip_txt_gpath[i], gp = gpar(col = txt_colors[i]))
+} # Edit the grobs
+
+
+grid.newpage(); grid.draw(g_1) # Draw the edited plot
+
 #### FIGURE 8b---------------------------------------------------------
 ##same, without numbers and with time span of the records
-Datasheet_sh.full %>% 
+p<-Datasheet_sh.full %>% 
   ggplot(aes(x=reorder(Bin_num,-Bin_num), y=Sum_direct)) +  
   geom_bar(stat = "identity",width = 0.7) +
   geom_point(aes(x=reorder(Bin_num,-Bin_num),y=4),
@@ -423,28 +843,97 @@ Datasheet_sh.full %>%
   facet_wrap(~`Site Name`)+
   theme_bw() +
   theme(axis.text.x = element_text(angle = 90, hjust=1)) +
+  geom_text(aes(label= ifelse(ForLabs=="H","H","")), vjust=-0.3, size=3) +
   ylab("Absolute frequency")+
   xlab("Time bins")+
   ggtitle("Absolute frequency of direct indicators through time per site")
 
+g_1 <- grid.force(ggplotGrob(p))   #df to see the right path of text title
+grobs_df <- do.call(cbind.data.frame, grid.ls(g_1, print = FALSE)) 
+grobs_df$gPath_full <- paste(grobs_df$gPath, grobs_df$name, sep = "::") # Build optimal gPaths that will be later used to identify grobs and edit them
+grobs_df$gPath_full <- gsub(pattern = "layout::", 
+                            replacement = "", 
+                            x = grobs_df$gPath_full, 
+                            fixed = TRUE)
 
+strip_bg_gpath <- grobs_df$gPath_full[grepl(pattern = ".*strip\\.background.*", # Get the gPaths of the strip background grob
+                                            x = grobs_df$gPath_full)]
+strip_txt_gpath <- grobs_df$gPath_full[grepl(pattern = "strip.*titleGrob.*text.*", # Get the gPaths of the strip titles
+                                             x = grobs_df$gPath_full)]
+
+fills <-  c(rep("#636363",17), # vector of colors to fill rectangles
+            rep("#BDBDBD",2),
+            rep("#636363",5),
+            rep( "#BDBDBD",7),
+            rep( "#F0F0F0",2),
+            rep( "#BDBDBD",5)) 
+
+txt_colors <- c(rep("white",17), # vector of colors for text
+                rep("black",2),
+                rep("white",5),
+                rep( "black",7),
+                rep( "black",2),
+                rep( "black",5))
+
+for (i in 1:length(strip_bg_gpath)){
+  g_1 <- editGrob(grob = g_1, gPath = strip_bg_gpath[i], gp = gpar(fill = fills[i]))
+  g_1 <- editGrob(grob = g_1, gPath = strip_txt_gpath[i], gp = gpar(col = txt_colors[i]))
+} # Edit the grobs
+
+
+grid.newpage(); grid.draw(g_1) # Draw the edited plot
 #### FIGURE 9----------------------------------------
 ## Absolute frequency of indirect indicators through time per site
 
-Datasheet_sh.full %>% 
+p<-Datasheet_sh.full %>% 
   ggplot(aes(x=reorder(Bin_num,-Bin_num), y=Sum_indirect)) +  
   geom_bar(stat = "identity",width = 0.5) +
   facet_wrap(~`Site Name`) +
   theme_bw() +
   theme(axis.text.x = element_text(angle = 90, hjust=1)) +
-  geom_text(aes(label=Sum_indirect), vjust=-0.3, size=3) +
+  geom_text(aes(label= ifelse(ForLabs=="H","H",Sum_indirect)), vjust=-0.3, size=3) +
   ylab("Absolute frequency")+
   xlab("Time bins")+
   ggtitle("Absolute frequency of indirect indicators through time per site")
 
+g_1 <- grid.force(ggplotGrob(p))   #df to see the right path of text title
+grobs_df <- do.call(cbind.data.frame, grid.ls(g_1, print = FALSE)) 
+grobs_df$gPath_full <- paste(grobs_df$gPath, grobs_df$name, sep = "::") # Build optimal gPaths that will be later used to identify grobs and edit them
+grobs_df$gPath_full <- gsub(pattern = "layout::", 
+                            replacement = "", 
+                            x = grobs_df$gPath_full, 
+                            fixed = TRUE)
+
+strip_bg_gpath <- grobs_df$gPath_full[grepl(pattern = ".*strip\\.background.*", # Get the gPaths of the strip background grob
+                                            x = grobs_df$gPath_full)]
+strip_txt_gpath <- grobs_df$gPath_full[grepl(pattern = "strip.*titleGrob.*text.*", # Get the gPaths of the strip titles
+                                             x = grobs_df$gPath_full)]
+
+fills <-  c(rep("#636363",17), # vector of colors to fill rectangles
+            rep("#BDBDBD",2),
+            rep("#636363",5),
+            rep( "#BDBDBD",7),
+            rep( "#F0F0F0",2),
+            rep( "#BDBDBD",5)) 
+
+txt_colors <- c(rep("white",17), # vector of colors for text
+                rep("black",2),
+                rep("white",5),
+                rep( "black",7),
+                rep( "black",2),
+                rep( "black",5))
+
+for (i in 1:length(strip_bg_gpath)){
+  g_1 <- editGrob(grob = g_1, gPath = strip_bg_gpath[i], gp = gpar(fill = fills[i]))
+  g_1 <- editGrob(grob = g_1, gPath = strip_txt_gpath[i], gp = gpar(col = txt_colors[i]))
+} # Edit the grobs
+
+
+grid.newpage(); grid.draw(g_1) # Draw the edited plot
+
 #### FIGURE 9b---------------------------------------------------------
 ##same, without numbers and with time span of the records
-Datasheet_sh.full %>% 
+p<-Datasheet_sh.full %>% 
   ggplot(aes(x=reorder(Bin_num,-Bin_num), y=Sum_indirect)) +  
   geom_bar(stat = "identity",width = 0.7) +
   geom_point(aes(x=reorder(Bin_num,-Bin_num),y=22),
@@ -452,13 +941,49 @@ Datasheet_sh.full %>%
   facet_wrap(~`Site Name`)+
   theme_bw() +
   theme(axis.text.x = element_text(angle = 90, hjust=1)) +
+  geom_text(aes(label= ifelse(ForLabs=="H","H","")), vjust=-0.3, size=3) +
   ylab("Absolute frequency")+
   xlab("Time bins")+
   ggtitle("Absolute frequency of indirect indicators through time per site")
 
+g_1 <- grid.force(ggplotGrob(p))   #df to see the right path of text title
+grobs_df <- do.call(cbind.data.frame, grid.ls(g_1, print = FALSE)) 
+grobs_df$gPath_full <- paste(grobs_df$gPath, grobs_df$name, sep = "::") # Build optimal gPaths that will be later used to identify grobs and edit them
+grobs_df$gPath_full <- gsub(pattern = "layout::", 
+                            replacement = "", 
+                            x = grobs_df$gPath_full, 
+                            fixed = TRUE)
+
+strip_bg_gpath <- grobs_df$gPath_full[grepl(pattern = ".*strip\\.background.*", # Get the gPaths of the strip background grob
+                                            x = grobs_df$gPath_full)]
+strip_txt_gpath <- grobs_df$gPath_full[grepl(pattern = "strip.*titleGrob.*text.*", # Get the gPaths of the strip titles
+                                             x = grobs_df$gPath_full)]
+
+fills <-  c(rep("#636363",17), # vector of colors to fill rectangles
+            rep("#BDBDBD",2),
+            rep("#636363",5),
+            rep( "#BDBDBD",7),
+            rep( "#F0F0F0",2),
+            rep( "#BDBDBD",5)) 
+
+txt_colors <- c(rep("white",17), # vector of colors for text
+                rep("black",2),
+                rep("white",5),
+                rep( "black",7),
+                rep( "black",2),
+                rep( "black",5))
+
+for (i in 1:length(strip_bg_gpath)){
+  g_1 <- editGrob(grob = g_1, gPath = strip_bg_gpath[i], gp = gpar(fill = fills[i]))
+  g_1 <- editGrob(grob = g_1, gPath = strip_txt_gpath[i], gp = gpar(col = txt_colors[i]))
+} # Edit the grobs
+
+
+grid.newpage(); grid.draw(g_1) # Draw the edited plot
+
 #### FIGURE 9c----------------------------------
 #Absolute frequency of high food pot indicators through time per site
-Datasheet_sh.pot.full %>% 
+p<-Datasheet_sh.pot.full %>% 
   ggplot(aes(x=reorder(Bin_num,-Bin_num), y=Sum_high)) +  
   geom_bar(stat = "identity",width = 0.7) +
   geom_point(aes(x=reorder(Bin_num,-Bin_num),y=22),
@@ -466,14 +991,50 @@ Datasheet_sh.pot.full %>%
   facet_wrap(~`Site Name`)+
   theme_bw() +
   theme(axis.text.x = element_text(angle = 90, hjust=1)) +
+  geom_text(aes(label= ifelse(ForLabs=="H","H","")), vjust=-0.3, size=3) +
   ylab("Absolute frequency")+
   xlab("Time bins")+
   ggtitle("Absolute frequency of indicators with high food potential through time per site")
 
+g_1 <- grid.force(ggplotGrob(p))   #df to see the right path of text title
+grobs_df <- do.call(cbind.data.frame, grid.ls(g_1, print = FALSE)) 
+grobs_df$gPath_full <- paste(grobs_df$gPath, grobs_df$name, sep = "::") # Build optimal gPaths that will be later used to identify grobs and edit them
+grobs_df$gPath_full <- gsub(pattern = "layout::", 
+                            replacement = "", 
+                            x = grobs_df$gPath_full, 
+                            fixed = TRUE)
+
+strip_bg_gpath <- grobs_df$gPath_full[grepl(pattern = ".*strip\\.background.*", # Get the gPaths of the strip background grob
+                                            x = grobs_df$gPath_full)]
+strip_txt_gpath <- grobs_df$gPath_full[grepl(pattern = "strip.*titleGrob.*text.*", # Get the gPaths of the strip titles
+                                             x = grobs_df$gPath_full)]
+
+fills <-  c(rep("#636363",17), # vector of colors to fill rectangles
+            rep("#BDBDBD",2),
+            rep("#636363",5),
+            rep( "#BDBDBD",7),
+            rep( "#F0F0F0",2),
+            rep( "#BDBDBD",5)) 
+
+txt_colors <- c(rep("white",17), # vector of colors for text
+                rep("black",2),
+                rep("white",5),
+                rep( "black",7),
+                rep( "black",2),
+                rep( "black",5))
+
+for (i in 1:length(strip_bg_gpath)){
+  g_1 <- editGrob(grob = g_1, gPath = strip_bg_gpath[i], gp = gpar(fill = fills[i]))
+  g_1 <- editGrob(grob = g_1, gPath = strip_txt_gpath[i], gp = gpar(col = txt_colors[i]))
+} # Edit the grobs
+
+
+grid.newpage(); grid.draw(g_1) # Draw the edited plot
+
 #### FIGURE 9d---------------------------------------
 #Absolute frequency of low food pot indicators through time per site
 
-Datasheet_sh.pot.full %>% 
+p<-Datasheet_sh.pot.full %>% 
   ggplot(aes(x=reorder(Bin_num,-Bin_num), y=Sum_low)) +  
   geom_bar(stat = "identity",width = 0.7) +
   geom_point(aes(x=reorder(Bin_num,-Bin_num),y=22),
@@ -481,9 +1042,46 @@ Datasheet_sh.pot.full %>%
   facet_wrap(~`Site Name`)+
   theme_bw() +
   theme(axis.text.x = element_text(angle = 90, hjust=1)) +
+  geom_text(aes(label= ifelse(ForLabs=="H","H","")), vjust=-0.3, size=3) +
   ylab("Absolute frequency")+
   xlab("Time bins")+
   ggtitle("Absolute frequency of indicators with low food potential through time per site")
+
+g_1 <- grid.force(ggplotGrob(p))   #df to see the right path of text title
+grobs_df <- do.call(cbind.data.frame, grid.ls(g_1, print = FALSE)) 
+grobs_df$gPath_full <- paste(grobs_df$gPath, grobs_df$name, sep = "::") # Build optimal gPaths that will be later used to identify grobs and edit them
+grobs_df$gPath_full <- gsub(pattern = "layout::", 
+                            replacement = "", 
+                            x = grobs_df$gPath_full, 
+                            fixed = TRUE)
+
+strip_bg_gpath <- grobs_df$gPath_full[grepl(pattern = ".*strip\\.background.*", # Get the gPaths of the strip background grob
+                                            x = grobs_df$gPath_full)]
+strip_txt_gpath <- grobs_df$gPath_full[grepl(pattern = "strip.*titleGrob.*text.*", # Get the gPaths of the strip titles
+                                             x = grobs_df$gPath_full)]
+
+fills <-  c(rep("#636363",17), # vector of colors to fill rectangles
+            rep("#BDBDBD",2),
+            rep("#636363",5),
+            rep( "#BDBDBD",7),
+            rep( "#F0F0F0",2),
+            rep( "#BDBDBD",5)) 
+
+txt_colors <- c(rep("white",17), # vector of colors for text
+                rep("black",2),
+                rep("white",5),
+                rep( "black",7),
+                rep( "black",2),
+                rep( "black",5))
+
+for (i in 1:length(strip_bg_gpath)){
+  g_1 <- editGrob(grob = g_1, gPath = strip_bg_gpath[i], gp = gpar(fill = fills[i]))
+  g_1 <- editGrob(grob = g_1, gPath = strip_txt_gpath[i], gp = gpar(col = txt_colors[i]))
+} # Edit the grobs
+
+
+grid.newpage(); grid.draw(g_1) # Draw the edited plot
+
 
 #### FIGURE 10-------------------------------------
 ## to have a single chart for direct and indirect indicators
@@ -493,12 +1091,22 @@ DF_sh.Direct.Sum<-DF_sh.Direct.Sum%>%
 DF_sh.Indirect.Sum <- DF_sh.Indirect.Sum %>% 
   mutate(IND=rep("Indirect"))
 
-Datasheet_sh.full.long<-rbind(bind_cols(Datasheet_shaved,DF_sh.Indirect.Sum),
-                              bind_cols(Datasheet_shaved,DF_sh.Direct.Sum))
+Datasheet_sh.full.long<-rbind(bind_cols(Datasheet_shaved,
+                                        DF_sh.Indirect.Sum,
+                                        Datasheet_sh.full%>% select(ForLabs)),
+                              bind_cols(Datasheet_shaved,
+                                        DF_sh.Direct.Sum,
+                                        Datasheet_sh.full%>% select(ForLabs)))
+
+# sites ordered according to lat, to sort facets in plot
+Datasheet_sh.full.long$`Site Name`<-factor(Datasheet_sh.full.long$`Site Name`)
+Datasheet_sh.full.long$`Site Name`<-fct_reorder(Datasheet_sh.full.long$`Site Name`,
+                                                -Datasheet_sh.full.long$Latitude)
 
 #order levels of IND to show Indirect ind on the top of direct (in the graph)
 Datasheet_sh.full.long$IND<-factor(Datasheet_sh.full.long$IND, 
                                    levels = c("Indirect","Direct"))
+
 
 #direct and indirect side by side
 ggplot(data=Datasheet_sh.full.long, 
@@ -522,6 +1130,7 @@ ggplot(data=Datasheet_sh.full.long,
   facet_wrap(~`Site Name`)+
   theme_bw()+
   theme(axis.text.x = element_text(angle = 90, hjust=1))+
+  geom_text(aes(label= ifelse(ForLabs=="H","H","")), vjust=-0.3, size=3) +
   ylab("Absolute frequency")+
   xlab("Time bins")+
   ggtitle("Absolute frequency of indicators through time")
@@ -606,9 +1215,21 @@ DF_sh.No.Sum <- DF_sh.No.Sum %>%
 colnames(DF_sh.No.Sum)[1]<-"SUM"
 
 
-Datasheet_sh.pot.full.long<-rbind(bind_cols(Datasheet_shaved,DF_sh.High.Sum),
-                              bind_cols(Datasheet_shaved,DF_sh.Low.Sum),
-                              bind_cols(Datasheet_shaved,DF_sh.No.Sum))
+Datasheet_sh.pot.full.long<-rbind(bind_cols(Datasheet_shaved,
+                                            DF_sh.High.Sum,
+                                            Datasheet_sh.full%>% select(ForLabs)),
+                              bind_cols(Datasheet_shaved,
+                                        DF_sh.Low.Sum,
+                                        Datasheet_sh.full%>% select(ForLabs)),
+                              bind_cols(Datasheet_shaved,
+                                        DF_sh.No.Sum,
+                                        Datasheet_sh.full%>% select(ForLabs)))
+
+# sites ordered according to lat, does not work in sorting facets in plot
+Datasheet_sh.pot.full.long$`Site Name`<-factor(Datasheet_sh.pot.full.long$`Site Name`)
+Datasheet_sh.pot.full.long$`Site Name`<-fct_reorder(Datasheet_sh.pot.full.long$`Site Name`,
+                                                    -Datasheet_sh.pot.full.long$Latitude)
+
 #plot
 graph1<-ggplot(data=Datasheet_sh.pot.full.long, 
        aes(x = reorder(Bin_num,-Bin_num),y=SUM,fill=IND))+
@@ -616,6 +1237,7 @@ graph1<-ggplot(data=Datasheet_sh.pot.full.long,
   facet_wrap(~`Site Name`)+
   theme_bw()+
   theme(axis.text.x = element_text(angle = 90, hjust=1))+
+  geom_text(aes(label= ifelse(ForLabs=="H","H","")), vjust=-0.3, size=3) +
   ylab("Absolute frequency")+
   xlab("Time bins")+
   ggtitle("Absolute frequency of indicators through time")
@@ -653,6 +1275,7 @@ Datasheet_sh.pot.full.long%>%
   facet_wrap(~`Site Name`)+
   theme_bw()+
   theme(axis.text.x = element_text(angle = 90, hjust=1))+
+  geom_text(aes(label= ifelse(ForLabs=="H","H","")), vjust=-0.3, size=3) +
   ylab("Absolute frequency")+
   xlab("Time bins")+
   ggtitle("Absolute frequency of indicators through time")
@@ -701,6 +1324,7 @@ pColb<-Datasheet_sh.full.long %>%
   facet_wrap(~`Site Name`)+
   theme_bw()+
   theme(axis.text.x = element_text(angle = 90, hjust=1))+
+  geom_text(aes(label= ifelse(ForLabs=="H","H","")), vjust=-0.3, size=3) +
   ylab("Absolute frequency")+
   xlab("Time bins")+
   ggtitle("Absolute frequency of indicators through time")
@@ -710,11 +1334,6 @@ gridExtra::grid.arrange(Colombia,pColb, ncol=2)
 
 #### FIGURE 11c-----------------------------------
 # smooth graph with factes ordered by Site Latitude
-
-# sites ordered according to lat, to sort facets in plot
-Datasheet_sh.full.long$`Site Name`<-factor(Datasheet_sh.full.long$`Site Name`)
-Datasheet_sh.full.long$`Site Name`<-fct_reorder(Datasheet_sh.full.long$`Site Name`,
-                                                -Datasheet_sh.full.long$Latitude)
 
 # plot
 pColc<-Datasheet_sh.full.long%>% 
@@ -734,10 +1353,6 @@ gridExtra::grid.arrange(Colombia,pColc, ncol=2)
 
 #### FIGURE 11d-----------------------------------
 # same as above, with potential food indicators
-# sites ordered according to lat, does not work in sorting facets in plot
-Datasheet_sh.pot.full.long$`Site Name`<-factor(Datasheet_sh.pot.full.long$`Site Name`)
-Datasheet_sh.pot.full.long$`Site Name`<-fct_reorder(Datasheet_sh.pot.full.long$`Site Name`,
-                                                -Datasheet_sh.pot.full.long$Latitude)
 
 pCold<-Datasheet_sh.pot.full.long%>% 
   filter(Country== "Colombia") %>%  
@@ -1201,7 +1816,7 @@ Amap+
   ggtitle("Map of direct indicators through time")
 
 # FIGURE 23----------------------------------
-# map for potential food indicators
+# map for high potential food indicators
 Amap+
   geom_point(data=Datasheet_sh.pot.full.long%>%
                filter(IND=="High")%>%
@@ -1210,7 +1825,7 @@ Amap+
   ggtitle("Sites with indicators with high food potential")
 
 # FIGURE 24-----------------------------------------------
-## map for potential food indicators through time
+## map for high potential food indicators through time
 Amap+
   geom_point(data=Datasheet_sh.pot.full.long%>%
                filter(IND=="High")%>%
