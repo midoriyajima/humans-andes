@@ -14,7 +14,15 @@
 
 
 # ---------------------------------------------
-# TODO: add Dodonea:Gelasinospora to Rio Timbio to all Datasheet (and control if other columns left open)
+# TODO MAPS:zoom map, change background (no writes), connect site names on ppt to make them readable 
+#        (operational map), OR with numbers and circles
+# TODO DATASET: change Huila/n
+# TODO FIG 2: sign when direct ind appear
+# TODO FIG 3b: modify title, count number of sites (not bins)
+# TODO FIG 5 on: add altitude
+# TODO ALL FIGURES: short version of site names, self explanatory titles, add altitude to table 
+#                  when present and to titles when no table, check if everything is readable, check y axes
+# TODO FIG 5 to 6c: only direct ind, how to make them understandable, less figures 
 # TODO: climate chart
 
 # Packages
@@ -72,8 +80,8 @@ Sites_Nomatch$`Site Name`
 LAPD_Andes$SiteName
 
 #rename Datasheet Site Names according to the ones in LAPD_Andes
-to_replace<-c("Cerro Toledo",  "El Tiro\n"  , "Laguna Natosas forest", "Pedras Blancas","Huila", "Paramo de Agua Blanca III", "Paramo de pena Negra I")
-with_this<-c("Cerro Toledo CT", "El Tiro", "Lagunas Natosas Forest", "Piedras Blancas", "Huila\r\n", "Agua Blanca PAB III", "Paramo de Pena Negra 1")
+to_replace<-c("Cerro Toledo",  "El Tiro\n"  , "Laguna Natosas forest", "Pedras Blancas", "Paramo de Agua Blanca III", "Paramo de pena Negra I")
+with_this<-c("Cerro Toledo CT", "El Tiro", "Lagunas Natosas Forest", "Piedras Blancas", "Agua Blanca PAB III", "Paramo de Pena Negra 1")
 Datasheet$`Site Name`<-Datasheet$`Site Name`%>%plyr::mapvalues(to_replace,with_this)
 
 #insert correct lat, long for Pantano de Pecho
