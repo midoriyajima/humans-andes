@@ -83,9 +83,12 @@ cca.env$ZONE <- as.factor(cca.env$ZONE)
 cca.env <- cca.env %>%
   left_join(Sites, by= "Site Name")
 
-cca.env$`Site Name` <- as.factor(cca.env$`Site Name`)
-cca.env$`Site Name`<- reorder(cca.env$`Site Name` , as.double(cca.env$cluster))
+cca.env<- cca.env %>%
+  group_by(`Site Name`) %>%
+  mutate(ORDER = mean(as.double(ZONE)*mean(Bin_num), na.rm = T))
 
+cca.env$`Site Name` <- as.factor(cca.env$`Site Name`)
+cca.env$`Site Name`<- reorder(cca.env$`Site Name` , -cca.env$ORDER)
 
 
 # --------------------------------------------------------------- 

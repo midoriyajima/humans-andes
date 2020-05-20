@@ -8,6 +8,7 @@ library(tidyverse)
 library(readxl)
 library(vegan)
 library(ggpubr)  
+library(ggpubr)
 
 # Load data
 # Datasheet_shaved <- read_excel("data/Datasheet_shaved.xlsx")
