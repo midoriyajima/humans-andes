@@ -13,17 +13,7 @@
 # Suzette Flantua <s.g.a.flantua@gmail.com>
 
 
-# ---------------------------------------------
-# TODO MAPS:zoom map, change background (no writes), connect site names on ppt to make them readable 
-#        (operational map), OR with numbers and circles
-# TODO DATASET: change Huila/n
-# TODO FIG 2: sign when direct ind appear
-# TODO FIG 3b: modify title, count number of sites (not bins)
-# TODO FIG 5 on: add altitude
-# TODO ALL FIGURES: short version of site names, self explanatory titles, add altitude to table 
-#                  when present and to titles when no table, check if everything is readable, check y axes
-# TODO FIG 5 to 6c: only direct ind, how to make them understandable, less figures 
-# TODO: climate chart
+# -----------------------------------------------
 
 # Packages
 library(readxl)
@@ -39,6 +29,8 @@ library(gridExtra)
 library(RColorBrewer)
 library(cowplot)
 library(plotrix)
+
+#------------------------------------------------------------------------
 
 #### Setting up dataframes (do only once)-------------------------------------------------------
 
@@ -180,12 +172,19 @@ Col.to<-sort(Col.to)
 
 Datasheet_shaved<-Datasheet_shaved %>% rename_at(vars(Col.from), ~Col.to)
 
+#change Colname
+colnames(Datasheet_shaved)[2]<-"Site Name long"
+colnames(Datasheet_shaved)[3]<-"Site Name"
+
 write_xlsx(Datasheet_shaved,"Datasheet_shaved.xlsx")
 
+# df with first appearance of direct ind
+FirstInd<-Datasheet_sh.full%>%filter(Sum_direct>0)
+FirstInd<-FirstInd[with(FirstInd, order(-Bin_num)), ]
+FirstInd<-FirstInd[match(unique(FirstInd$`Site Name`), FirstInd$`Site Name`),]
 
-#------------------------------------------------------------------------
 
-# Load dataframes adjusted
+# Load dataframes adjusted----------------------
 Datasheet <- read_excel("data/Datasheet.xlsx")
 Datasheet_shaved<-read_excel("data/Datasheet_shaved.xlsx")
 Human_indicators <- read_excel("data/Human_indicators.xlsx")
@@ -198,7 +197,11 @@ ToTable<-Datasheet_shaved%>%
   distinct(`Site Name`,Country,Latitude,Longitude,`Reference (short)`)
 
 # order df according to Country
-ToTable<-ToTable[order(ToTable$Country),]
+ToTable<-ToTable[order(-ToTable$Latitude),]
+
+#adjust content
+ToTable[25,5]<-"Frederik et al, 2018"
+
 grid.newpage()
 grid.table(ToTable)
 
@@ -214,154 +217,29 @@ Sites<-Datasheet_shaved%>%distinct(`Site Name`,Latitude,Longitude, Country, Alti
 # obtain map of the area
 range(Sites$Longitude)
 range(Sites$Latitude)
-Andes<-get_stamenmap(bbox = c(left=-84,
+Andes<-get_stamenmap(bbox = c(left=-83,
                               bottom=-7,
-                              right=-67, 
-                              top=12),
-                     zoom=5,maptype = "terrain-background")
+                              right=-69, 
+                              top=11),
+                     zoom=5,maptype = "terrain-background", color="bw")
 #map
 Amap<- ggmap(Andes)+
+  geom_point(data=Sites,
+             aes(x= Longitude, y=Latitude))
+
+
+# version 2
+s <- "element:geometry%7Ccolor:0xf5f5f5&style=element:labels%7Cvisibility:off&style=element:labels.icon%7Cvisibility:off&style=element:labels.text.fill%7Ccolor:0x616161&style=element:labels.text.stroke%7Ccolor:0xf5f5f5&style=feature:administrative%7Celement:geometry%7Cvisibility:off&style=feature:administrative.country%7Celement:geometry.stroke%7Ccolor:0x000000%7Cvisibility:on&style=feature:administrative.land_parcel%7Cvisibility:off&style=feature:administrative.land_parcel%7Celement:labels.text.fill%7Ccolor:0xbdbdbd&style=feature:administrative.neighborhood%7Cvisibility:off&style=feature:poi%7Cvisibility:off&style=feature:poi%7Celement:geometry%7Ccolor:0xeeeeee&style=feature:poi%7Celement:labels.text.fill%7Ccolor:0x757575&style=feature:poi.park%7Celement:geometry%7Ccolor:0xe5e5e5&style=feature:poi.park%7Celement:labels.text.fill%7Ccolor:0x9e9e9e&style=feature:road%7Cvisibility:off&style=feature:road%7Celement:geometry%7Ccolor:0xffffff&style=feature:road%7Celement:labels.icon%7Cvisibility:off&style=feature:road.arterial%7Celement:labels.text.fill%7Ccolor:0x757575&style=feature:road.highway%7Celement:geometry%7Ccolor:0xdadada&style=feature:road.highway%7Celement:labels.text.fill%7Ccolor:0x616161&style=feature:road.local%7Celement:labels.text.fill%7Ccolor:0x9e9e9e&style=feature:transit%7Cvisibility:off&style=feature:transit.line%7Celement:geometry%7Ccolor:0xe5e5e5&style=feature:transit.station%7Celement:geometry%7Ccolor:0xeeeeee&style=feature:water%7Celement:geometry%7Ccolor:0xc9c9c9&style=feature:water%7Celement:labels.text.fill%7Ccolor:0x9e9e9e&size=480x360"
+
+Andes2 <- get_googlemap(center = c(-76, 2.6), zoom=5, scale = 1, style = s)
+
+
+ggmap(Andes2)+
   geom_point(data=Sites,
              aes(x= Longitude, y=Latitude))+
   geom_text(data=Sites, 
             aes(x = Longitude + .001, y = Latitude, label=`Site Name`),
             size=1, hjust=-0.1, vjust=0)
-
-
-# version 2
-median(Sites$Longitude)
-median(Sites$Latitude)
-
-Andes2 <- get_googlemap(center = c(-77.85538, 0.427025),  maptype = "satellite", zoom = 5) 
-
-ggmap(Andes2)+
-   geom_point(data=Sites,
-              aes(x= Longitude, y=Latitude))+
-   geom_text(data=Sites, 
-             aes(x = Longitude + .001, y = Latitude, label=`Site Name`),
-             size=1, hjust=-0.1, vjust=0)
-
-# version 2, b/n
-Andes4 <- get_googlemap(center = c(-77.85538, 0.427025),  maptype = "satellite", zoom = 5, color='bw') 
-
-Amap4<-ggmap(Andes4)+
-   geom_point(data=Sites,
-              aes(x= Longitude, y=Latitude))+
-   geom_text(data=Sites, 
-             aes(x = Longitude + .001, y = Latitude, label=`Site Name`),
-             size=1, hjust=-0.1, vjust=0)
-
-# version 3
-Andes2b <- get_googlemap(center = c(-77.85538, 0.427025),  maptype = "terrain", zoom = 5) 
-
-ggmap(Andes2b)+
-   geom_point(data=Sites,
-              aes(x= Longitude, y=Latitude))+
-   geom_text(data=Sites, 
-             aes(x = Longitude + .001, y = Latitude, label=`Site Name`),
-             size=1, hjust=-0.1, vjust=0)
-
-
-# version 3, b/n
-box<-make_bbox(lat=Sites$Latitude, lon=Sites$Longitude)
-
-Andes3 <-get_map(location = box, 
-                 source = "google", zoom = 5,color='bw')
-
-Amap3<-ggmap(Andes3)+
-   geom_point(data=Sites,
-              aes(x= Longitude, y=Latitude))+
-   geom_text(data=Sites, 
-             aes(x = Longitude + .001, y = Latitude, label=`Site Name`),
-             size=1, hjust=-0.1, vjust=0)
-
-
-# same as above, subsetting Sites (not used for the moment)----------------------------
-# By location (Colombia, Venezuela, Ecuador)
-#Col
-Col<-Sites%>%filter(Country=="Colombia")
-range(Col$Latitude) 
-range(Col$Longitude)
-
-ColMap<-get_stamenmap(bbox = c(left=-80,
-                               bottom=0,
-                               right=-70, 
-                               top=7),
-                      zoom=5,maptype = "terrain-background")
-
-Colombia<-ggmap(ColMap)+
-  geom_point(data=Col,
-             aes(x= Longitude, y=Latitude), size=0.5)+
-  geom_text(data=Col, 
-            aes(x = Longitude + .001, y = Latitude, label=`Site Name`),
-            size=2, hjust=-0.1, vjust=0)
-
- #Ven
-Ven<-Sites%>%filter(Country=="Venezuela")
-range(Ven$Latitude) 
-range(Ven$Longitude)
-
-VenMap<-get_stamenmap(bbox = c(left=-72,
-                                    bottom=7,
-                                    right=-68, 
-                                    top=10),
-                           zoom=5,maptype = "terrain-background")
-
-Venezuela<-ggmap(VenMap)+
-  geom_point(data=Ven,
-             aes(x= Longitude, y=Latitude))+
-  geom_text(data=Ven, 
-            aes(x = Longitude + .001, y = Latitude, label=`Site Name`),
-            size=2, hjust=-0.1, vjust=0)
-
-# Ec
-Ec<-Sites%>%filter(Country=="Ecuador")
-range(Ec$Latitude) 
-range(Ec$Longitude)
-
-EcMap<-get_stamenmap(bbox = c(left=-80,
-                               bottom=-5,
-                               right=-77, 
-                               top=1),
-                      zoom=5,maptype = "terrain-background")
-
-Ecuador<-ggmap(EcMap)+
-  geom_point(data=Ec,
-             aes(x= Longitude, y=Latitude), size=0.5)+
-  geom_text(data=Ec, 
-            aes(x = Longitude + .001, y = Latitude, label=`Site Name`),
-            size=1.8, hjust=-0.1, vjust=0)
-
-### subsetting By altitude
-# >2000
-Tk<-Sites%>%filter(Altitude<2000)
-
-Tkmap<- ggmap(Andes)+
-  geom_point(data=Tk,
-             aes(x= Longitude, y=Latitude),size=0.5)+
-  geom_text(data=Tk, 
-            aes(x = Longitude + .001, y = Latitude, label=`Site Name`),
-            size=1.5, hjust=-0.1, vjust=0)
-
-# 2000<Altitude< 3000
-Trk<-Sites%>%filter(Altitude %in% 2000:3000)
-
-Trkmap<- ggmap(Andes)+
-  geom_point(data=Trk,
-             aes(x= Longitude, y=Latitude),size=0.5)+
-  geom_text(data=Trk, 
-            aes(x = Longitude + .001, y = Latitude, label=`Site Name`),
-            size=1.5, hjust=-0.1, vjust=0)
-
-# 3000<Altitude<4215 (max value)
-Fk<-Sites%>%filter(Altitude %in% 3000:4215)
-
-Fkmap<- ggmap(Andes)+
-  geom_point(data=Fk,
-             aes(x= Longitude, y=Latitude),size=0.5)+
-  geom_text(data=Fk, 
-            aes(x = Longitude + .001, y = Latitude, label=`Site Name`),
-            size=1.5, hjust=-0.1, vjust=0)
 
 
 ####FIGURE 2-------------------------------
@@ -373,22 +251,52 @@ display.brewer.pal(n = 3, name = 'Greys')
 brewer.pal(n = 3, name = 'Greys')
 
 #with Datasheet_shaved
-plot<-ggplot(Datasheet_shaved)+
-  geom_bar( aes(x=reorder(`Site Name`,Latitude), fill=Country),colour="black")+
-  scale_fill_manual(values=c("#BDBDBD","#636363","#F0F0F0"))+
+p<-ggplot(Datasheet_shaved)+
+  geom_bar(aes (x=reorder(`Site Name`,Latitude),fill=Country),colour="black")+
+  scale_fill_manual(values=c("#BDBDBD","#636363","#F0F0F0"), guide= F)+
   theme_bw()+
   theme(axis.text.y  = element_text( hjust=1))+
   theme(axis.title.x = element_blank(),
         axis.text.x =element_blank(),
         axis.ticks.x =element_blank(),
         axis.title.y = element_blank())+
-  geom_text(aes(x=`Site Name`,label=Length),stat='count', hjust=-0.1, size=3)+
+  geom_text(aes(x=`Site Name`,label=Length), stat='count', hjust=-0.1, size=3)+
   coord_flip()+
   ggtitle("Time span of the records")
+
+g_1 <- grid.force(ggplotGrob(p))
 
 # extract legend from here, to use later in other plots
 
 legend<-get_legend(plot)
+
+#random plot to have legend (to explain fig 1 edited later)
+df.r<-data.frame(x=1, y=2, Col="Direct indicator")
+r<-ggplot(df.r)+
+  geom_point(aes(x=x,y=y,col=Col), pch=15,cex=3 )+
+  scale_color_manual(values = "orange")+
+  labs(col="First occurrence")
+
+leg<-get_legend(r)
+
+# plot with leg
+grid.newpage()
+vp1 <- viewport(width = 0.75, height = 0.8, x = 0.4, y = .5)
+vplegC <- viewport(width = 0.25, height = 1, x = 0.9, y = 0.6)
+vplegL<- viewport(width = 0.25, height = 1, x = 0.9, y = 0.5)
+
+
+upViewport(0)
+pushViewport(vp1)
+grid.draw(g_1)
+
+upViewport(0)
+pushViewport(vplegC)
+grid.draw(legend)
+
+upViewport(0)
+pushViewport(vplegL)
+grid.draw(leg)
 
 #### FIGURE 3 ---------------------------------
 ## number of records per time bin 
@@ -408,9 +316,8 @@ ggplot(Datasheet_shaved)+
 
  # select only indicators
  Datasheet_sh.indicators<-Datasheet_shaved %>%
-   select(.,-c("LAPD_ID\n" ,"Site Name","Reference (short)","Bin", "Bin_num",
+   select(.,-c("LAPD_ID\r\n"  ,"ShortName","Site Name","Reference (short)","Bin", "Bin_num",
                "Latitude","Longitude", "Country","Length","Altitude" ))
- 
  # Convert counts from character to numeric
  Datasheet_sh.indicators <- apply (Datasheet_sh.indicators,2,
                                    FUN= function(x) as.numeric(unlist(x)))
@@ -421,6 +328,12 @@ ggplot(Datasheet_shaved)+
  Datasheet_sh.ind.full <- bind_cols(Datasheet_shaved %>%                
                                       select(.,c("Site Name")),
                                       Datasheet_sh.indicators)  
+ #add altitude
+ Datasheet_sh.ind.full$`Site Name`<-paste(Datasheet_sh.ind.full$`Site Name`,
+                                          "(",
+                                          Datasheet_shaved$Altitude,
+                                          "masl",
+                                          ")")
  
  # calculate number of times (i.e num of bins) taxa are found per site
  IndxSite<- reshape2::melt(Datasheet_sh.ind.full) %>%
@@ -445,9 +358,11 @@ ggplot(Datasheet_shaved)+
                                       TotPres$variable)]
  
  
+ 
  # plot
  IndxSite%>%
- ggplot(aes(x=reorder(variable,TotPres),y=TotPres,fill=Ind))+
+   filter(variable!="Latitude")%>%
+ ggplot(aes(x=reorder(variable,TotPres),y=Pres,fill=Ind))+
    geom_bar(stat = "identity")+
    theme_bw()+
    theme(axis.text.x = element_text(angle = 70, hjust=1),
@@ -459,6 +374,7 @@ ggplot(Datasheet_shaved)+
 ####FIGURE 3c---------------------------------
  # as above, distinguishing for Potential source of food
  IndxSite%>%
+   filter(variable!="Latitude")%>%
    ggplot(aes(x=reorder(variable,TotPres),y=Pres,fill=Pot))+
    geom_bar(stat = "identity")+
    theme_bw()+
@@ -483,23 +399,44 @@ Datasheet_sh.full$ForLabs<-Datasheet_sh.full$Sum_total
 Datasheet_sh.full$ForLabs[Datasheet_sh.full$ForLabs==0]<-"H"
 Datasheet_sh.full[123:124,"ForLabs"]<-"0"
 
+#add altitulde to site names
+Datasheet_sh.full$`Site Name`<-paste(Datasheet_sh.full$`Site Name`,"(",Datasheet_sh.full$Altitude, "masl",")")
 
 # sites ordered according to lat, to sort facets in plot
 Datasheet_sh.full$`Site Name`<-factor(Datasheet_sh.full$`Site Name`)
 Datasheet_sh.full$`Site Name`<-fct_reorder(Datasheet_sh.full$`Site Name`,
                                                 -Datasheet_sh.full$Latitude)
 
-
+# plot
    p <- ggplot(data= Datasheet_sh.full, 
                aes(x=reorder(Bin_num,-Bin_num), y=Sum_total)) +  
      geom_bar(stat = "identity",width = 0.5) +
+     geom_point(aes(x=reorder(Bin_num,-Bin_num),y=25),
+                col=ifelse(Datasheet_sh.full$ForLabs=="H","orange","black"), pch=25 ,
+                bg=ifelse(Datasheet_sh.full$ForLabs=="H","orange","black"), cex=0.7)+
      facet_wrap(~`Site Name`) +
      theme_bw() +
      theme(axis.text.x = element_text(angle = 50, hjust=1)) +
-     geom_text(aes(label=ForLabs), vjust=-0.3, size=3) +
      ylab("Absolute frequency")+
-     xlab("Time bins")+
-     ggtitle("Absolute frequency of indicators through time per site")
+     xlab("Time bin")+
+     ggtitle("Total number of indicators found per time bin per site")
+   
+# same with lines and points   
+ ggplot(data= Datasheet_sh.full, 
+          aes(x=-Bin_num, y=Sum_total)) +  
+     geom_point()+
+   geom_line()+
+     facet_wrap(~`Site Name`) +
+     theme_bw() +
+     theme(axis.text.x = element_text(angle = 50, hjust=1)) +
+     ylab("Absolute frequency")+
+     xlab("Time bin")+
+     ggtitle("Total number of indicators found per time bin per site")+
+   geom_point(aes(x=-Bin_num,y=25),
+              col=ifelse(Datasheet_sh.full$ForLabs=="H","orange","black"), pch=25 ,
+              bg=ifelse(Datasheet_sh.full$ForLabs=="H","orange","black"), cex=0.7)
+
+   
    
 # to color facet according to Country   
 g_1 <- grid.force(ggplotGrob(p))   #df to see the right path of text title
@@ -534,16 +471,27 @@ for (i in 1:length(strip_bg_gpath)){ # Edit the grobs
   g_1 <- editGrob(grob = g_1, gPath = strip_txt_gpath[i], gp = gpar(col = txt_colors[i]))
 } 
 
-# add legend(extracted from FIG.2)
-plot_grid( g_1, legend, ncol = 2, rel_widths  = c(1, .2))
+#add legend from fig 8b
+grid.newpage()
+vp1 <- viewport(width = 0.75, height = 0.8, x = 0.4, y = .5)
+vplegC <- viewport(width = 0.25, height = 1, x = 0.9, y = 0.6)
+vplegL<- viewport(width = 0.25, height = 1, x = 0.9, y = 0.5)
 
-#### FIGURE 5 ---------------------------------
+
+upViewport(0)
+pushViewport(vp1)
+grid.draw(g_1)
+
+upViewport(0)
+pushViewport(vplegC)
+grid.draw(legend)
+
+upViewport(0)
+pushViewport(vplegL)
+grid.draw(legend_l)
+
+#### FIGURE 5 (discarded, hard to read) ---------------------------------
 ## number of times human indicators are counted in each site
-# order sites by lat   
-Datasheet_sh.ind.full$Latitude<-Datasheet_sh.full$Latitude  
-Datasheet_sh.ind.full$`Site Name`<-factor(Datasheet_sh.ind.full$`Site Name`)
-Datasheet_sh.ind.full$`Site Name`<-fct_reorder(Datasheet_sh.ind.full$`Site Name`,
-                                              -Datasheet_sh.ind.full$Latitude)
    
 
  p<-reshape2::melt(Datasheet_sh.ind.full%>%
@@ -557,8 +505,7 @@ Datasheet_sh.ind.full$`Site Name`<-fct_reorder(Datasheet_sh.ind.full$`Site Name`
    theme_bw() +
    theme(axis.text.x = element_text(angle = 50, hjust=1))+
    labs(x= "Indicator")+
-   ggtitle("Number of times Indicators are found per Site",
-           subtitle = "In how many time bins each indicator was found, per site")
+   ggtitle("In how many time bins each indicator was found, per site")
    
  g_1 <- grid.force(ggplotGrob(p))   #df to see the right path of text title
  grobs_df <- do.call(cbind.data.frame, grid.ls(g_1, print = FALSE)) 
@@ -591,27 +538,14 @@ Datasheet_sh.ind.full$`Site Name`<-fct_reorder(Datasheet_sh.ind.full$`Site Name`
    g_1 <- editGrob(grob = g_1, gPath = strip_bg_gpath[i], gp = gpar(fill = fills[i]))
    g_1 <- editGrob(grob = g_1, gPath = strip_txt_gpath[i], gp = gpar(col = txt_colors[i]))
  } # Edit the grobs
- 
- # create table as legend for the used abbreviations
- ToAbbr<-reshape2::melt(Datasheet_sh.ind.full%>%select(-c("Latitude")))%>%
-   distinct(variable)%>%
-   pull()
- ForLegend<-as.data.frame(abbreviate(ToAbbr,2, named = T))
- ForLegend<-rownames_to_column(ForLegend, "Indicator")
- colnames(ForLegend)[2]<-"Abbreviation"
- ForLegend[4,1]<-"Amaranthceae/ Chenopodiaceae"
- 
- my_table <- tableGrob( ForLegend ,theme = ttheme_default (base_size = 7, padding = unit(c(4,2),"mm")),
-                        rows=NULL)
- 
- my_table$widths <- unit(rep(1/ncol(my_table), ncol(my_table)), "npc")
+
  
  # add table and legend extracted from FIG.2
  
  grid.newpage()
  vp1 <- viewport(width = 0.75, height = 1, x = 0.35, y = .5)
- vpleg <- viewport(width = 0.22, height = 1, x = 0.87, y = 0.5)
- vplegC <- viewport(width = 0.2, height = 0.2, x = 0.8, y = 0.9)
+ vpleg <- viewport(width = 0.22, height =1, x = 0.87, y = 0.5)
+ vplegC <- viewport(width = 0.15, height = 0., x = 0.8, y = 0.9)
  
  upViewport(0)
  pushViewport(vp1)
@@ -621,12 +555,11 @@ Datasheet_sh.ind.full$`Site Name`<-fct_reorder(Datasheet_sh.ind.full$`Site Name`
  pushViewport(vpleg)
  grid.draw(my_table)
  
- 
  upViewport(0)
  pushViewport(vplegC)
  grid.draw(legend)
  
- #### FIGURE 5b--------------------------------------
+ #### FIGURE 5b( discarded, hard to read)--------------------------------------
  # distinguish between direct and indirect
  
  p<- reshape2::melt(Datasheet_sh.ind.full%>%
@@ -711,7 +644,28 @@ Datasheet_sh.ind.full$`Site Name`<-fct_reorder(Datasheet_sh.ind.full$`Site Name`
  grid.draw(legend_di)
  
  #### FIGURE 5b_Colombia----------------------------------------
- ## split plot per countries
+ # order sites by lat   
+ Datasheet_sh.ind.full$Latitude<-Datasheet_sh.full$Latitude  
+ Datasheet_sh.ind.full$`Site Name`<-factor(Datasheet_sh.ind.full$`Site Name`)
+ Datasheet_sh.ind.full$`Site Name`<-fct_reorder(Datasheet_sh.ind.full$`Site Name`,
+                                                -Datasheet_sh.ind.full$Latitude)
+ 
+ # create table as legend for the used abbreviations
+ ToAbbr<-reshape2::melt(Datasheet_sh.ind.full%>%select(-c("Latitude")))%>%
+   distinct(variable)%>%
+   pull()
+ ForLegend<-as.data.frame(abbreviate(ToAbbr,minlength = 3,method = "both.sides", named = T))
+ ForLegend<-rownames_to_column(ForLegend, "Indicator")
+ colnames(ForLegend)[2]<-"Abbreviation"
+ #ForLegend[4,1]<-"Amaranthceae/ Chenopodiaceae"
+ ForLegend[c(4,28),2]<-c("A/C", "Myr")
+ 
+ my_table <- tableGrob( ForLegend ,theme = ttheme_default (base_size = 7, padding = unit(c(4,2),"mm")),
+                        rows=NULL)
+ 
+ my_table$widths <- unit(rep(1/ncol(my_table), ncol(my_table)), "npc")
+ 
+ ## plot
  p<- reshape2::melt(Datasheet_sh.ind.full%>%
                        mutate(Country=Datasheet_sh.full$Country)%>%
                        filter(Country== "Colombia")%>%
@@ -719,31 +673,32 @@ Datasheet_sh.ind.full$`Site Name`<-fct_reorder(Datasheet_sh.ind.full$`Site Name`
     group_by(`Site Name`,variable) %>%
     summarise(Count = sum(value, na.rm = T))%>%
     mutate(Ind=Human_indicators$Indicator
-           [match(variable,Human_indicators$`Group (Taxa)`)])%>%
-    ggplot(aes(x=variable,y=Count, fill=Ind))+
+           [match(variable,Human_indicators$`Group (Taxa)`)],
+           Short=ForLegend$Abbreviation
+           [match(variable,ForLegend$Indicator)])%>%
+    ggplot(aes(x=Short,y=Count, fill=Ind))+
     geom_bar(stat = "identity")+
     facet_wrap(~`Site Name`,ncol = 2)+
     theme_bw()+
     theme(axis.text.x = element_text(angle = 60, hjust=1))+
     scale_fill_discrete(guide=FALSE)+
-    scale_x_discrete(label=function(x) abbreviate(x, 2))+
-    labs(x= "Indicator")+
-    ggtitle("Number of times Indicators are found per Site, Colombia",
-            subtitle = "In how many time bins each indicator was found, per site") 
+   #guides(fill = guide_legend(nrow = 1))+
+    labs(x= "Indicator",
+         fill="Indicator")+
+    ggtitle("Number of bins indicators are found per Site, Colombia") 
  
  g_1 <- grid.force(ggplotGrob(p))
  
  # extract legend from plot
  legend_di<-get_legend(g_1)
  
- # add scale_fill_dscete to original plot p
+ # add scale_fill_dscete to original plot p and re run
  
  # add table(from fig 6) and legend extracted from FIG.2, legend from plot 6b
- 
  grid.newpage()
- vp1 <- viewport(width = 0.75, height = 1, x = 0.35, y = .5)
- vpleg <- viewport(width = 0.25, height = 1, x = 0.87, y = 0.5)
- vplegI<-  viewport(width = 0.1, height = 0.2, x = 0.8, y = 0.9)
+ vp1 <- viewport(width = 0.75, height = 0.8, x = 0.4, y = .55)
+ vpleg <- viewport(width = 0.25, height = 1, x = 0.9, y = 0.55)
+ vplegI<- viewport(width = 0.1, height = 0.1, x = 0.4, y = 0.1)
  
  upViewport(0)
  pushViewport(vp1)
@@ -766,31 +721,27 @@ Datasheet_sh.ind.full$`Site Name`<-fct_reorder(Datasheet_sh.ind.full$`Site Name`
     group_by(`Site Name`,variable) %>%
     summarise(Count = sum(value, na.rm = T))%>%
     mutate(Ind=Human_indicators$Indicator
-           [match(variable,Human_indicators$`Group (Taxa)`)])%>%
-    ggplot(aes(x=variable,y=Count, fill=Ind))+
+           [match(variable,Human_indicators$`Group (Taxa)`)],
+           Short=ForLegend$Abbreviation
+           [match(variable,ForLegend$Indicator)])%>%
+   ggplot(aes(x=Short,y=Count, fill=Ind))+
     geom_bar(stat = "identity")+
     facet_wrap(~`Site Name`,ncol = 2)+
     theme_bw()+
     theme(axis.text.x = element_text(angle = 60, hjust=1))+
     scale_fill_discrete(guide=FALSE)+
-    scale_x_discrete(label=function(x) abbreviate(x, 2))+
     labs(x="Indicator")+
-    ggtitle("Number of times Indicators are found per Site, Ecuador",
-            subtitle = "In how many time bins each indicator was found, per site") 
+    ggtitle("Number of bins Indicators found per Site, Ecuador")
  
  g_1 <- grid.force(ggplotGrob(p))
- 
- # extract legend from plot
- legend_di<-get_legend(g_1)
- 
- # add scale_fill_dscete to original plot p
+
  
  # add table(from fig 6) and legend extracted from FIG.2, legend from plot 6b
  
  grid.newpage()
- vp1 <- viewport(width = 0.75, height = 1, x = 0.35, y = .5)
- vpleg <- viewport(width = 0.25, height = 1, x = 0.87, y = 0.5)
- vplegI<-  viewport(width = 0.1, height = 0.2, x = 0.8, y = 0.9)
+ vp1 <- viewport(width = 0.75, height = 0.8, x = 0.4, y = .55)
+ vpleg <- viewport(width = 0.25, height = 1, x = 0.9, y = 0.55)
+ vplegI<- viewport(width = 0.1, height = 0.1, x = 0.4, y = 0.1)
  
  upViewport(0)
  pushViewport(vp1)
@@ -813,48 +764,41 @@ Datasheet_sh.ind.full$`Site Name`<-fct_reorder(Datasheet_sh.ind.full$`Site Name`
     group_by(`Site Name`,variable) %>%
     summarise(Count = sum(value, na.rm = T))%>%
     mutate(Ind=Human_indicators$Indicator
-           [match(variable,Human_indicators$`Group (Taxa)`)])%>%
-    ggplot(aes(x=variable,y=Count, fill=Ind))+
+           [match(variable,Human_indicators$`Group (Taxa)`)],
+           Short=ForLegend$Abbreviation
+           [match(variable,ForLegend$Indicator)])%>%
+   ggplot(aes(x=Short,y=Count, fill=Ind))+
     geom_bar(stat = "identity")+
     facet_wrap(~`Site Name`)+
     theme_bw()+
     theme(axis.text.x = element_text(angle = 60, hjust=1))+
-   # guides(fill = guide_legend(nrow = 1))+
     scale_fill_discrete (guide=FALSE)+
     scale_x_discrete(label=function(x) abbreviate(x, 2))+
     labs(x="Indicator",
          fill="Indicator")+
-    ggtitle("Number of times Indicators are found per Site, Venezuela",
-            subtitle = "In how many time bins each indicator was found, per site") 
+    ggtitle("Number of bins Indicators found per Site, Venezuela")
  
  g_1 <- grid.force(ggplotGrob(p))
  
- # extract legend from plot
- legend_di<-get_legend(g_1)
- 
- # add scale_fill_dscete to original plot p
  
  # add table(from fig 6) and legend extracted from FIG.2, legend from plot 6b
  
  grid.newpage()
- vp1 <- viewport(width = 0.75, height = .5, x = 0.35, y = .6)
- vpleg <- viewport(width = 0.25, height = 1, x = 0.87, y = 0.55)
- vplegI<- viewport(width = 0.1, height = 0.2, x = 0.3, y = 0.24)
+ vp1 <- viewport(width = 0.75, height = 0.8, x = 0.4, y = .55)
+ vpleg <- viewport(width = 0.25, height = 1, x = 0.9, y = 0.55)
+ vplegI<- viewport(width = 0.1, height = 0.1, x = 0.4, y = 0.1)
  
  upViewport(0)
  pushViewport(vp1)
  grid.draw(g_1)
  
- 
  upViewport(0)
  pushViewport(vpleg)
  grid.draw(my_table)
  
- 
  upViewport(0)
  pushViewport(vplegI)
  grid.draw(legend_di)
- 
  
  # FIGURE 5b_under 2k mt-------------------------------------------------
  
@@ -865,25 +809,25 @@ Datasheet_sh.ind.full$`Site Name`<-fct_reorder(Datasheet_sh.ind.full$`Site Name`
     group_by(`Site Name`,variable) %>%
     summarise(Count = sum(value, na.rm = T))%>%
     mutate(Ind=Human_indicators$Indicator
-           [match(variable,Human_indicators$`Group (Taxa)`)])%>%
-    ggplot(aes(x=variable,y=Count, fill=Ind))+
+           [match(variable,Human_indicators$`Group (Taxa)`)],
+           Short=ForLegend$Abbreviation
+           [match(variable,ForLegend$Indicator)])%>%
+   ggplot(aes(x=Short,y=Count, fill=Ind))+
     geom_bar(stat = "identity")+
     facet_wrap(~`Site Name`)+
     theme_bw()+
     theme(axis.text.x = element_text(angle = 60, hjust=1))+
     scale_fill_discrete(guide=FALSE)+
-    scale_x_discrete(label=function(x) abbreviate(x, 2))+
     labs(x="Indicator",
          fill="Indicator")+
-    ggtitle("Number of times Indicators are found per Site, between 1k and 2k m Altitude",
-            subtitle = "In how many time bins each indicator was found, per site") 
+    ggtitle("Number of bins Indicators found per Site, between 1k and 2k masl")
  
  g_1 <- grid.force(ggplotGrob(p))   #df to see the right path of text title
  
  # extract legend from plot
  legend_di<-get_legend(g_1)
  
- # add scale_fill_dscete to original plot p
+ # add scale_fill_dscete to original plot p and re run
  
  grobs_df <- do.call(cbind.data.frame, grid.ls(g_1, print = FALSE)) 
  grobs_df$gPath_full <- paste(grobs_df$gPath, grobs_df$name, sep = "::") # Build optimal gPaths that will be later used to identify grobs and edit them
@@ -906,16 +850,12 @@ Datasheet_sh.ind.full$`Site Name`<-fct_reorder(Datasheet_sh.ind.full$`Site Name`
     g_1 <- editGrob(grob = g_1, gPath = strip_txt_gpath[i], gp = gpar(col = txt_colors[i]))
  } # Edit the grobs
  
- 
- 
- 
  # add table(from fig 6), legend extracted from FIG.2, legend extracted from this plot
- 
  grid.newpage()
- vp1 <- viewport(width = 0.75, height = 1, x = 0.35, y = .5)
- vpleg <- viewport(width = 0.22, height = 1, x = 0.87, y = 0.5)
- vplegC <- viewport(width = 0.1, height = 0.2, x = 0.8, y = 0.9)
- vplegI<- viewport(width = 0.1, height = 0.2, x = 0.9, y = 0.9)
+ vp1 <- viewport(width = 0.75, height = 0.8, x = 0.4, y = .6)
+ vpleg <- viewport(width = 0.25, height = 1, x = 0.9, y = 0.6)
+ vplegC <- viewport(width = 0.1, height = 0.1, x = 0.4, y = 0.1)
+ vplegI<- viewport(width = 0.1, height = 0.1, x = 0.5, y = 0.1)
  
  upViewport(0)
  pushViewport(vp1)
@@ -925,7 +865,6 @@ Datasheet_sh.ind.full$`Site Name`<-fct_reorder(Datasheet_sh.ind.full$`Site Name`
  pushViewport(vpleg)
  grid.draw(my_table)
  
- 
  upViewport(0)
  pushViewport(vplegC)
  grid.draw(legend)
@@ -934,9 +873,6 @@ Datasheet_sh.ind.full$`Site Name`<-fct_reorder(Datasheet_sh.ind.full$`Site Name`
  pushViewport(vplegI)
  grid.draw(legend_di)
  
- 
- 
- 
  # FIGURE 5b_between 2 and 3k mt-------------------------------------------------
  p<- reshape2::melt(Datasheet_sh.ind.full%>%
                        mutate(Altitude=Datasheet_sh.full$Altitude)%>%
@@ -944,18 +880,18 @@ Datasheet_sh.ind.full$`Site Name`<-fct_reorder(Datasheet_sh.ind.full$`Site Name`
                        select(-c("Latitude", "Altitude"))) %>%
     group_by(`Site Name`,variable) %>%
     summarise(Count = sum(value, na.rm = T))%>%
-    mutate(Ind=Human_indicators$Indicator
-           [match(variable,Human_indicators$`Group (Taxa)`)])%>%
-    ggplot(aes(x=variable,y=Count, fill=Ind))+
+   mutate(Ind=Human_indicators$Indicator
+          [match(variable,Human_indicators$`Group (Taxa)`)],
+          Short=ForLegend$Abbreviation
+          [match(variable,ForLegend$Indicator)])%>%
+   ggplot(aes(x=Short,y=Count, fill=Ind))+
     geom_bar(stat = "identity")+
     facet_wrap(~`Site Name`)+
     theme_bw()+
     theme(axis.text.x = element_text(angle = 60, hjust=1))+
     scale_fill_discrete(guide=FALSE)+
-    scale_x_discrete(label=function(x) abbreviate(x, 2))+
     labs(x="Indicator")+  
-    ggtitle("Number of times Indicators are found per Site, between 2000 and 3000 m of altitude",
-            subtitle = "In how many time bins each indicator was found, per site") 
+   ggtitle("Number of bins Indicators found per Site, between 2k and 3k masl")
  
  
  g_1 <- grid.force(ggplotGrob(p))   #df to see the right path of text title
@@ -981,13 +917,13 @@ Datasheet_sh.ind.full$`Site Name`<-fct_reorder(Datasheet_sh.ind.full$`Site Name`
  } # Edit the grobs
  
  
- # add table(from fig 6), legend extracted from FIG.2, legend extracted from this plot
+ # add table(from fig 6), legend extracted from FIG.2, legend extracted from 05b_2k
  
  grid.newpage()
- vp1 <- viewport(width = 0.75, height = 1, x = 0.35, y = .5)
- vpleg <- viewport(width = 0.22, height = 1, x = 0.87, y = 0.5)
- vplegC <- viewport(width = 0.1, height = 0.2, x = 0.8, y = 0.9)
- vplegI<- viewport(width = 0.1, height = 0.2, x = 0.9, y = 0.9)
+ vp1 <- viewport(width = 0.75, height = 0.8, x = 0.4, y = .6)
+ vpleg <- viewport(width = 0.25, height = 1, x = 0.9, y = 0.6)
+ vplegC <- viewport(width = 0.1, height = 0.1, x = 0.4, y = 0.1)
+ vplegI<- viewport(width = 0.1, height = 0.1, x = 0.5, y = 0.1)
  
  upViewport(0)
  pushViewport(vp1)
@@ -996,7 +932,6 @@ Datasheet_sh.ind.full$`Site Name`<-fct_reorder(Datasheet_sh.ind.full$`Site Name`
  upViewport(0)
  pushViewport(vpleg)
  grid.draw(my_table)
- 
  
  upViewport(0)
  pushViewport(vplegC)
@@ -1013,18 +948,18 @@ Datasheet_sh.ind.full$`Site Name`<-fct_reorder(Datasheet_sh.ind.full$`Site Name`
                        select(-c("Latitude", "Altitude"))) %>%
     group_by(`Site Name`,variable) %>%
     summarise(Count = sum(value, na.rm = T))%>%
-    mutate(Ind=Human_indicators$Indicator
-           [match(variable,Human_indicators$`Group (Taxa)`)])%>%
-    ggplot(aes(x=variable,y=Count, fill=Ind))+
+   mutate(Ind=Human_indicators$Indicator
+          [match(variable,Human_indicators$`Group (Taxa)`)],
+          Short=ForLegend$Abbreviation
+          [match(variable,ForLegend$Indicator)])%>%
+   ggplot(aes(x=Short,y=Count, fill=Ind))+
     geom_bar(stat = "identity")+
     facet_wrap(~`Site Name`)+
     theme_bw()+
     theme(axis.text.x = element_text(angle = 60, hjust=1))+
     scale_fill_discrete(guide=FALSE)+
-    scale_x_discrete(label=function(x) abbreviate(x, 2))+
     labs(x="Indicator")+
-    ggtitle("Number of times Indicators are found per Site, between 3000 m and max altitude where sites found",
-            subtitle = "In how many time bins each indicator was found, per site") 
+   ggtitle("Number of bins Indicators found per Site, between 3k and 4215 masl")
  
  
  
@@ -1054,13 +989,13 @@ Datasheet_sh.ind.full$`Site Name`<-fct_reorder(Datasheet_sh.ind.full$`Site Name`
     g_1 <- editGrob(grob = g_1, gPath = strip_txt_gpath[i], gp = gpar(col = txt_colors[i]))
  } # Edit the grobs
  
- # add table(from fig 6), legend extracted from FIG.2, legend extracted from this plot
+ # add table(from fig 6), legend extracted from FIG.2, legend extracted from fig 05b_2k
  
  grid.newpage()
- vp1 <- viewport(width = 0.75, height = 1, x = 0.35, y = .5)
- vpleg <- viewport(width = 0.22, height = 1, x = 0.87, y = 0.5)
- vplegC <- viewport(width = 0.1, height = 0.2, x = 0.8, y = 0.9)
- vplegI<- viewport(width = 0.1, height = 0.2, x = 0.9, y = 0.9)
+ vp1 <- viewport(width = 0.75, height = 0.8, x = 0.4, y = .6)
+ vpleg <- viewport(width = 0.25, height = 1, x = 0.9, y = 0.6)
+ vplegC <- viewport(width = 0.1, height = 0.1, x = 0.4, y = 0.1)
+ vplegI<- viewport(width = 0.1, height = 0.1, x = 0.5, y = 0.1)
  
  upViewport(0)
  pushViewport(vp1)
@@ -1079,474 +1014,7 @@ Datasheet_sh.ind.full$`Site Name`<-fct_reorder(Datasheet_sh.ind.full$`Site Name`
  pushViewport(vplegI)
  grid.draw(legend_di)
  
- #### FIGURE 5c------------------------------------
- # distinguish beteween different potential food source
- 
- #sort indicators in new df by food potential 
- 
- IndxPot<-Human_indicators%>% 
-    group_by(`Potential food source`)%>%
-    do( data.frame(with(data=., .[order(`Group (Taxa)`),] )) )%>% # sort human indiactors by group 
-    filter(North.Andean.fossil.records...yes.no.=="yes")%>% #select only indicators that are found in the other df
-    pull(Group..Taxa.) #create vector indicators (now ordered)
- 
- Datasheet_sh.ind.full.sort<-Datasheet_sh.ind.full[,IndxPot]%>%
-    mutate(`Site Name`=Datasheet_shaved$`Site Name`)%>%
-    mutate(Latitude=Datasheet_sh.full$Latitude ) 
- 
- Datasheet_sh.ind.full.sort$`Site Name`<-factor(Datasheet_sh.ind.full.sort$`Site Name`)
- Datasheet_sh.ind.full.sort$`Site Name`<-fct_reorder(Datasheet_sh.ind.full.sort$`Site Name`,
-                                                     -Datasheet_sh.ind.full$Latitude)
- #plot
- p<- reshape2::melt(Datasheet_sh.ind.full.sort%>%
-                       select(-c("Latitude"))) %>%
-    group_by(`Site Name`,variable) %>%
-    summarise(Count = sum(value, na.rm = T))%>%
-    mutate(Pot=Human_indicators$`Potential food source`
-           [match(variable,Human_indicators$`Group (Taxa)`)])%>%
-    ggplot(aes(x=variable,y=Count, fill=Pot))+
-    geom_bar(stat = "identity")+
-    facet_wrap(~`Site Name`)+
-    theme_bw()+
-    theme(axis.text.x = element_text(angle = 40, hjust=1))+
-    scale_fill_discrete(guide=FALSE)+
-    scale_x_discrete(label=function(x) abbreviate(x, 2))+
-    labs(x="Indicator")+
-         #fill= "Potential food")+
-    ggtitle("Number of times Indicators are found per Site",
-            subtitle = "In how many time bins each indicator was found, per site")  
- 
- g_1 <- grid.force(ggplotGrob(p))   
- 
- 
- # extract legend from plot
- legend_di<-get_legend(g_1)
- 
- # add scale_fill_dscete= "none" to original plot p
- 
- grobs_df <- do.call(cbind.data.frame, grid.ls(g_1, print = FALSE)) 
- grobs_df$gPath_full <- paste(grobs_df$gPath, grobs_df$name, sep = "::") # Build optimal gPaths that will be later used to identify grobs and edit them
- grobs_df$gPath_full <- gsub(pattern = "layout::", 
-                             replacement = "", 
-                             x = grobs_df$gPath_full, 
-                             fixed = TRUE)
- 
- strip_bg_gpath <- grobs_df$gPath_full[grepl(pattern = ".*strip\\.background.*", # Get the gPaths of the strip background grob
-                                             x = grobs_df$gPath_full)]
- strip_txt_gpath <- grobs_df$gPath_full[grepl(pattern = "strip.*titleGrob.*text.*", # Get the gPaths of the strip titles
-                                              x = grobs_df$gPath_full)]
- 
- fills <-  c(rep("#636363",17), # vector of colors to fill rectangles
-             rep("#BDBDBD",2),
-             rep("#636363",5),
-             rep( "#BDBDBD",7),
-             rep( "#F0F0F0",2),
-             rep( "#BDBDBD",5)) 
- 
- txt_colors <- c(rep("white",17), # vector of colors for text
-                 rep("black",2),
-                 rep("white",5),
-                 rep( "black",7),
-                 rep( "black",2),
-                 rep( "black",5))
- 
- for (i in 1:length(strip_bg_gpath)){
-    g_1 <- editGrob(grob = g_1, gPath = strip_bg_gpath[i], gp = gpar(fill = fills[i]))
-    g_1 <- editGrob(grob = g_1, gPath = strip_txt_gpath[i], gp = gpar(col = txt_colors[i]))
- } # Edit the grobs
- 
- # add table(from fig 6) and legend extracted from FIG.2
- 
- grid.newpage()
- vp1 <- viewport(width = 0.75, height = 1, x = 0.35, y = .5)
- vpleg <- viewport(width = 0.22, height = 1, x = 0.87, y = 0.5)
- vplegC <- viewport(width = 0.1, height = 0.2, x = 0.8, y = 0.9)
- vplegI<- viewport(width = 0.1, height = 0.2, x = 0.9, y = 0.9)
- 
- upViewport(0)
- pushViewport(vp1)
- grid.draw(g_1)
- 
- upViewport(0)
- pushViewport(vpleg)
- grid.draw(my_table)
- 
- 
- upViewport(0)
- pushViewport(vplegC)
- grid.draw(legend)
- 
- upViewport(0)
- pushViewport(vplegI)
- grid.draw(legend_di)
- 
- #### FIGURE 5c_Colombia----------------------------------------
- ## split plot per countries
- p<- reshape2::melt(Datasheet_sh.ind.full.sort%>%
-                       mutate(Country=Datasheet_sh.full$Country)%>%
-                       filter(Country== "Colombia")%>%
-                       select(-c("Latitude"))) %>%
-    group_by(`Site Name`,variable) %>%
-    summarise(Count = sum(value, na.rm = T))%>%
-    mutate(Pot=Human_indicators$`Potential food source`
-           [match(variable,Human_indicators$`Group (Taxa)`)])%>%
-    ggplot(aes(x=variable,y=Count, fill=Pot))+
-    geom_bar(stat = "identity")+
-    facet_wrap(~`Site Name`,ncol = 2)+
-    theme_bw()+
-    theme(axis.text.x = element_text(angle = 60, hjust=1))+
-    scale_fill_discrete(guide=FALSE)+
-    scale_x_discrete(label=function(x) abbreviate(x, 2))+
-    labs(x="Indicator")+
-    ggtitle("Number of times Indicators are found per Site, Colombia",
-            subtitle = "In how many time bins each indicator was found, per site")
- 
- g_1 <- grid.force(ggplotGrob(p))
- 
- # add table(from fig 6) and legend extracted from FIG.2, legend from plot 6b
- 
- grid.newpage()
- vp1 <- viewport(width = 0.75, height = 1, x = 0.35, y = .5)
- vpleg <- viewport(width = 0.25, height = 1, x = 0.87, y = 0.5)
- vplegI<- viewport(width = 0.1, height = 0.2, x = 0.8, y = 0.9)
- 
- upViewport(0)
- pushViewport(vp1)
- grid.draw(g_1)
- 
- upViewport(0)
- pushViewport(vpleg)
- grid.draw(my_table)
-
- upViewport(0)
- pushViewport(vplegI)
- grid.draw(legend_di)
- 
- #### FIGURE 5c_Ecuador----------------------------------------
- ## split plot per countries
- p<- reshape2::melt(Datasheet_sh.ind.full.sort%>%
-                       mutate(Country=Datasheet_sh.full$Country)%>%
-                       filter(Country== "Ecuador")%>%
-                       select(-c("Latitude"))) %>%
-    group_by(`Site Name`,variable) %>%
-    summarise(Count = sum(value, na.rm = T))%>%
-    mutate(Pot=Human_indicators$`Potential food source`
-           [match(variable,Human_indicators$`Group (Taxa)`)])%>%
-    ggplot(aes(x=variable,y=Count, fill=Pot))+
-    geom_bar(stat = "identity")+
-    facet_wrap(~`Site Name`,ncol = 2)+
-    theme_bw()+
-    theme(axis.text.x = element_text(angle = 60, hjust=1))+
-    scale_fill_discrete(guide=FALSE)+
-    scale_x_discrete(label=function(x) abbreviate(x, 2))+
-    labs(x="Indicator")+
-    ggtitle("Number of times Indicators are found per Site, Ecuador",
-            subtitle = "In how many time bins each indicator was found, per site")
- 
- 
- g_1 <- grid.force(ggplotGrob(p))
- 
- 
- # add table(from fig 6) and legend extracted from FIG.2, legend from plot 6b
- 
- grid.newpage()
- vp1 <- viewport(width = 0.75, height = 1, x = 0.35, y = .5)
- vpleg <- viewport(width = 0.25, height = 1, x = 0.87, y = 0.5)
- vplegI<- viewport(width = 0.1, height = 0.2, x = 0.84, y = 0.9)
- 
- upViewport(0)
- pushViewport(vp1)
- grid.draw(g_1)
- 
- upViewport(0)
- pushViewport(vpleg)
- grid.draw(my_table)
- 
- upViewport(0)
- pushViewport(vplegI)
- grid.draw(legend_di)
- 
- #### FIGURE 5c_Venezuela----------------------------------------
- ## split plot per countries
- p<- reshape2::melt(Datasheet_sh.ind.full.sort%>%
-                       mutate(Country=Datasheet_sh.full$Country)%>%
-                       filter(Country== "Venezuela")%>%
-                       select(-c("Latitude"))) %>%
-    group_by(`Site Name`,variable) %>%
-    summarise(Count = sum(value, na.rm = T))%>%
-    mutate(Pot=Human_indicators$`Potential food source`
-           [match(variable,Human_indicators$`Group (Taxa)`)])%>%
-    ggplot(aes(x=variable,y=Count, fill=Pot))+
-    geom_bar(stat = "identity")+
-    facet_wrap(~`Site Name`,ncol = 2)+
-    theme_bw()+
-    theme(axis.text.x = element_text(angle = 60, hjust=1),
-          legend.direction = "horizontal",
-          legend.box = "horizontal")+
-    #guides(fill = guide_legend(nrow = 1))+
-    scale_fill_discrete(guide=FALSE)+
-    scale_x_discrete(label=function(x) abbreviate(x, 2))+
-    labs(x="Indicator",
-         fill="Potential food")+
-    ggtitle("Number of times Indicators are found per Site, Venezuela",
-            subtitle = "In how many time bins each indicator was found, per site")
- 
- g_1 <- grid.force(ggplotGrob(p))
- 
- # extract legend from plot, different from the one from fig 6c_Col, horizontal
- legend_di<-get_legend(g_1)
- 
- # add scale_fill_dscete to original plot p
- 
- # add table(from fig 6) and legend extracted from FIG.2, legend from plot 6b
- 
- grid.newpage()
- vp1 <- viewport(width = 0.75, height = .5, x = 0.35, y = .6)
- vpleg <- viewport(width = 0.25, height = 1, x = 0.87, y = 0.6)
- vplegI<- viewport(width = 0.1, height = 0.2, x = 0.4, y = 0.25)
- 
- upViewport(0)
- pushViewport(vp1)
- grid.draw(g_1)
- 
- upViewport(0)
- pushViewport(vpleg)
- grid.draw(my_table)
- 
- upViewport(0)
- pushViewport(vplegI)
- grid.draw(legend_di)
- 
- # FIGURE 5c_under 2k mt-------------------------------------------------
- 
- p<- reshape2::melt(Datasheet_sh.ind.full%>%
-                       mutate(Altitude=Datasheet_sh.full$Altitude)%>%
-                       filter(Altitude < 2000)%>%
-                       select(-c("Latitude", "Altitude"))) %>%
-    group_by(`Site Name`,variable) %>%
-    summarise(Count = sum(value, na.rm = T))%>%
-    mutate(Pot=Human_indicators$`Potential food source`
-           [match(variable,Human_indicators$`Group (Taxa)`)])%>%
-    ggplot(aes(x=variable,y=Count, fill=Pot))+
-    geom_bar(stat = "identity")+
-    facet_wrap(~`Site Name`)+
-    theme_bw()+
-    theme(axis.text.x = element_text(angle = 60, hjust=1))+
-    scale_fill_discrete(guide=FALSE)+
-    scale_x_discrete(label=function(x) abbreviate(x, 2))+
-    labs(x="Indicator",
-         fill="Potential food")+
-    ggtitle("Number of times Indicators are found per Site, between 1k and 2k m Altitude",
-            subtitle = "In how many time bins each indicator was found, per site")   
- 
- g_1 <- grid.force(ggplotGrob(p))   #df to see the right path of text title
- 
- # extract legend from plot
- legend_di<-get_legend(g_1)
- 
- # add scale_fill_dscete to original plot p
- 
- grobs_df <- do.call(cbind.data.frame, grid.ls(g_1, print = FALSE)) 
- grobs_df$gPath_full <- paste(grobs_df$gPath, grobs_df$name, sep = "::") # Build optimal gPaths that will be later used to identify grobs and edit them
- grobs_df$gPath_full <- gsub(pattern = "layout::", 
-                             replacement = "", 
-                             x = grobs_df$gPath_full, 
-                             fixed = TRUE)
- 
- strip_bg_gpath <- grobs_df$gPath_full[grepl(pattern = ".*strip\\.background.*", # Get the gPaths of the strip background grob
-                                             x = grobs_df$gPath_full)]
- strip_txt_gpath <- grobs_df$gPath_full[grepl(pattern = "strip.*titleGrob.*text.*", # Get the gPaths of the strip titles
-                                              x = grobs_df$gPath_full)]
- 
- fills <-  c( rep("#BDBDBD",5)) # vector of colors to fill rectangles
- 
- txt_colors <- c(rep("black",5)) # vector of colors for text
- 
- for (i in 1:length(strip_bg_gpath)){
-    g_1 <- editGrob(grob = g_1, gPath = strip_bg_gpath[i], gp = gpar(fill = fills[i]))
-    g_1 <- editGrob(grob = g_1, gPath = strip_txt_gpath[i], gp = gpar(col = txt_colors[i]))
- } # Edit the grobs
- 
- 
-
- 
- # add table(from fig 6), legend extracted from FIG.2, legend extracted from this plot
- 
- grid.newpage()
- vp1 <- viewport(width = 0.75, height = 1, x = 0.35, y = .5)
- vpleg <- viewport(width = 0.22, height = 1, x = 0.87, y = 0.5)
- vplegC <- viewport(width = 0.1, height = 0.2, x = 0.8, y = 0.9)
- vplegI<- viewport(width = 0.1, height = 0.2, x = 0.9, y = 0.9)
- 
- upViewport(0)
- pushViewport(vp1)
- grid.draw(g_1)
- 
- upViewport(0)
- pushViewport(vpleg)
- grid.draw(my_table)
- 
- 
- upViewport(0)
- pushViewport(vplegC)
- grid.draw(legend)
- 
- upViewport(0)
- pushViewport(vplegI)
- grid.draw(legend_di)
- 
- 
- 
- 
- # FIGURE 5c_between 2 and 3k mt-------------------------------------------------
- p<- reshape2::melt(Datasheet_sh.ind.full%>%
-                       mutate(Altitude=Datasheet_sh.full$Altitude)%>%
-                       filter(Altitude %in% 2000:3000)%>%
-                       select(-c("Latitude", "Altitude"))) %>%
-    group_by(`Site Name`,variable) %>%
-    summarise(Count = sum(value, na.rm = T))%>%
-    mutate(Pot=Human_indicators$`Potential food source`
-           [match(variable,Human_indicators$`Group (Taxa)`)])%>%
-    ggplot(aes(x=variable,y=Count, fill=Pot))+
-    geom_bar(stat = "identity")+
-    facet_wrap(~`Site Name`)+
-    theme_bw()+
-    theme(axis.text.x = element_text(angle = 60, hjust=1))+
-    scale_fill_discrete(guide=FALSE)+
-    scale_x_discrete(label=function(x) abbreviate(x, 2))+
-    labs(x="Indicator")+
-    ggtitle("Number of times Indicators are found per Site, between 2000 and 3000 m of altitude",
-            subtitle = "In how many time bins each indicator was found, per site")  
- 
- 
- g_1 <- grid.force(ggplotGrob(p))   #df to see the right path of text title
- grobs_df <- do.call(cbind.data.frame, grid.ls(g_1, print = FALSE)) 
- grobs_df$gPath_full <- paste(grobs_df$gPath, grobs_df$name, sep = "::") # Build optimal gPaths that will be later used to identify grobs and edit them
- grobs_df$gPath_full <- gsub(pattern = "layout::", 
-                             replacement = "", 
-                             x = grobs_df$gPath_full, 
-                             fixed = TRUE)
- 
- strip_bg_gpath <- grobs_df$gPath_full[grepl(pattern = ".*strip\\.background.*", # Get the gPaths of the strip background grob
-                                             x = grobs_df$gPath_full)]
- strip_txt_gpath <- grobs_df$gPath_full[grepl(pattern = "strip.*titleGrob.*text.*", # Get the gPaths of the strip titles
-                                              x = grobs_df$gPath_full)]
- 
- fills <-  c(rep ("#636363",6) ,rep("#BDBDBD",2),rep ("#636363",1)) # vector of colors to fill rectangles
- 
- txt_colors <- c(rep("white",6),rep("black",2), rep("white",1)) # vector of colors for text
- 
- for (i in 1:length(strip_bg_gpath)){
-    g_1 <- editGrob(grob = g_1, gPath = strip_bg_gpath[i], gp = gpar(fill = fills[i]))
-    g_1 <- editGrob(grob = g_1, gPath = strip_txt_gpath[i], gp = gpar(col = txt_colors[i]))
- } # Edit the grobs
- 
- 
- 
- # add table(from fig 6), legend extracted from FIG.2, legend extracted from this plot
- 
- grid.newpage()
- vp1 <- viewport(width = 0.75, height = 1, x = 0.35, y = .5)
- vpleg <- viewport(width = 0.22, height = 1, x = 0.87, y = 0.5)
- vplegC <- viewport(width = 0.1, height = 0.2, x = 0.8, y = 0.9)
- vplegI<- viewport(width = 0.1, height = 0.2, x = 0.9, y = 0.9)
- 
- upViewport(0)
- pushViewport(vp1)
- grid.draw(g_1)
- 
- upViewport(0)
- pushViewport(vpleg)
- grid.draw(my_table)
- 
- 
- upViewport(0)
- pushViewport(vplegC)
- grid.draw(legend)
- 
- upViewport(0)
- pushViewport(vplegI)
- grid.draw(legend_di)
- 
- # FIGURE 5c_between 3 and 4k mt-------------------------------------------------
- p<- reshape2::melt(Datasheet_sh.ind.full%>%
-                       mutate(Altitude=Datasheet_sh.full$Altitude)%>%
-                       filter(Altitude %in% 3000:4215)%>%
-                       select(-c("Latitude", "Altitude"))) %>%
-    group_by(`Site Name`,variable) %>%
-    summarise(Count = sum(value, na.rm = T))%>%
-    mutate(Pot=Human_indicators$`Potential food source`
-           [match(variable,Human_indicators$`Group (Taxa)`)])%>%
-    ggplot(aes(x=variable,y=Count, fill=Pot))+
-    geom_bar(stat = "identity")+
-    facet_wrap(~`Site Name`)+
-    theme_bw()+
-    theme(axis.text.x = element_text(angle = 60, hjust=1))+
-    scale_fill_discrete(guide=FALSE)+
-    scale_x_discrete(label=function(x) abbreviate(x, 2))+
-    labs(x="Indicator")+
-    ggtitle("Number of times Indicators are found per Site, between 3000 m and max altitude where sites found",
-            subtitle = "In how many time bins each indicator was found, per site")  
- 
- 
- g_1 <- grid.force(ggplotGrob(p))   #df to see the right path of text title
- grobs_df <- do.call(cbind.data.frame, grid.ls(g_1, print = FALSE)) 
- grobs_df$gPath_full <- paste(grobs_df$gPath, grobs_df$name, sep = "::") # Build optimal gPaths that will be later used to identify grobs and edit them
- grobs_df$gPath_full <- gsub(pattern = "layout::", 
-                             replacement = "", 
-                             x = grobs_df$gPath_full, 
-                             fixed = TRUE)
- 
- strip_bg_gpath <- grobs_df$gPath_full[grepl(pattern = ".*strip\\.background.*", # Get the gPaths of the strip background grob
-                                             x = grobs_df$gPath_full)]
- strip_txt_gpath <- grobs_df$gPath_full[grepl(pattern = "strip.*titleGrob.*text.*", # Get the gPaths of the strip titles
-                                              x = grobs_df$gPath_full)]
- 
- fills <-  c(rep ("#636363",14) ,rep("#BDBDBD",4),
-             rep ("#636363",1),rep( "#F0F0F0",2),
-             rep ("#BDBDBD",3)) # vector of colors to fill rectangles
- 
- txt_colors <- c(rep("white",14),
-                 rep("black",4), 
-                 rep("white",1), rep("black",5)) # vector of colors for text
- 
- for (i in 1:length(strip_bg_gpath)){
-    g_1 <- editGrob(grob = g_1, gPath = strip_bg_gpath[i], gp = gpar(fill = fills[i]))
-    g_1 <- editGrob(grob = g_1, gPath = strip_txt_gpath[i], gp = gpar(col = txt_colors[i]))
- } # Edit the grobs
-
- # add table(from fig 6), legend extracted from FIG.2, legend extracted from this plot
- 
- grid.newpage()
- vp1 <- viewport(width = 0.75, height = 1, x = 0.35, y = .5)
- vpleg <- viewport(width = 0.22, height = 1, x = 0.87, y = 0.5)
- vplegC <- viewport(width = 0.1, height = 0.2, x = 0.8, y = 0.9)
- vplegI<- viewport(width = 0.1, height = 0.2, x = 0.9, y = 0.9)
- 
- upViewport(0)
- pushViewport(vp1)
- grid.draw(g_1)
- 
- upViewport(0)
- pushViewport(vpleg)
- grid.draw(my_table)
- 
- 
- upViewport(0)
- pushViewport(vplegC)
- grid.draw(legend)
- 
- upViewport(0)
- pushViewport(vplegI)
- grid.draw(legend_di)
- 
- 
-#### FIGURE 6-----------------------------
- ## same with relative frequencies of indicators (n bins ind found/n bins covered from that site)
- #df with number of bins for each site (excluding bins where hiatuses)
- TotBins=as.data.frame (table(Datasheet_sh.full%>%
-                               filter(ForLabs!="H")%>%
-                               select(`Site Name`)))
+#### FIGURE 6 (discarded, hard to read)-----------------------------
  
  p<-reshape2::melt(Datasheet_sh.ind.full%>%
                      select(-c("Latitude"))) %>%
@@ -1618,7 +1086,7 @@ Datasheet_sh.ind.full$`Site Name`<-fct_reorder(Datasheet_sh.ind.full$`Site Name`
  pushViewport(vplegC)
  grid.draw(legend)
  
- #### FIGURE 6b--------------------------------------
+ #### FIGURE 6b (discarded, hard to read)--------------------------------------
  # relative freq., distinguish between direct and indirect
  
  p<- reshape2::melt(Datasheet_sh.ind.full%>%
@@ -1700,6 +1168,13 @@ Datasheet_sh.ind.full$`Site Name`<-fct_reorder(Datasheet_sh.ind.full$`Site Name`
  grid.draw(legend_di)
  
  #### FIGURE 6b_Colombia----------------------------------------
+ ## same with relative frequencies of indicators (n bins ind found/n bins covered from that site)
+ #df with number of bins for each site (excluding bins where hiatuses)
+ TotBins=as.data.frame (table(Datasheet_sh.full%>%
+                                filter(ForLabs!="H")%>%
+                                select(`Site Name`)))
+ 
+ 
  ## split plot per countries
  p<- reshape2::melt(Datasheet_sh.ind.full%>%
                       mutate(Country=Datasheet_sh.full$Country)%>%
@@ -1708,34 +1183,29 @@ Datasheet_sh.ind.full$`Site Name`<-fct_reorder(Datasheet_sh.ind.full$`Site Name`
    group_by(`Site Name`,variable) %>%
    summarise(Count = sum(value, na.rm = T))%>%
    mutate(TotBins=TotBins$Freq
-          [match(`Site Name`,TotBins$Var1)])%>%
-   mutate(Freq=Count/TotBins)%>%
-   mutate(Ind=Human_indicators$Indicator
-          [match(variable,Human_indicators$`Group (Taxa)`)])%>%
-   ggplot(aes(x=variable,y=Freq, fill=Ind))+
+          [match(`Site Name`,TotBins$Var1)],
+          Freq=Count/TotBins,
+          Ind=Human_indicators$Indicator
+          [match(variable,Human_indicators$`Group (Taxa)`)],
+          Short=ForLegend$Abbreviation
+          [match(variable,ForLegend$Indicator)])%>%
+   ggplot(aes(x=Short,y=Freq, fill=Ind))+
    geom_bar(stat = "identity")+
    facet_wrap(~`Site Name`,ncol = 2)+
    theme_bw()+
    theme(axis.text.x = element_text(angle = 60, hjust=1))+
    scale_fill_discrete(guide=FALSE)+
-   scale_x_discrete(label=function(x) abbreviate(x, 2))+
-    labs(x="Indicator")+
-   ggtitle("Relative frequency of indicators, Colombia",
-           subtitle = "Proportion of number of bins indicators found/ number of bins covered in a record" ) 
+    labs(x="Indicator",
+         y="Relative frequency")+
+   ggtitle("Proportion of number of bins indicators found/ number of bins covered , per site (Colombia)") 
  
  g_1 <- grid.force(ggplotGrob(p))
  
- # extract legend from plot
- legend_di<-get_legend(g_1)
- 
- # add scale_fill_dscete to original plot p
- 
- # add table(from fig 6) and legend extracted from FIG.2, legend from plot 6b
- 
+ # add table(from fig 6) and legend extracted from FIG.2, legend from fig 05b_Col
  grid.newpage()
- vp1 <- viewport(width = 0.75, height = 1, x = 0.35, y = .5)
- vpleg <- viewport(width = 0.25, height = 1, x = 0.87, y = 0.5)
- vplegI<- viewport(width = 0.1, height = 0.2, x = 0.8, y = 0.9)
+ vp1 <- viewport(width = 0.75, height = 0.8, x = 0.4, y = .55)
+ vpleg <- viewport(width = 0.25, height = 1, x = 0.9, y = 0.55)
+ vplegI<- viewport(width = 0.1, height = 0.1, x = 0.4, y = 0.1)
  
  upViewport(0)
  pushViewport(vp1)
@@ -1750,7 +1220,6 @@ Datasheet_sh.ind.full$`Site Name`<-fct_reorder(Datasheet_sh.ind.full$`Site Name`
  grid.draw(legend_di)
  
  #### FIGURE 6b_Ecuador----------------------------------------
- ## split plot per countries
  p<- reshape2::melt(Datasheet_sh.ind.full%>%
                       mutate(Country=Datasheet_sh.full$Country)%>%
                       filter(Country== "Ecuador")%>%
@@ -1758,29 +1227,29 @@ Datasheet_sh.ind.full$`Site Name`<-fct_reorder(Datasheet_sh.ind.full$`Site Name`
    group_by(`Site Name`,variable) %>%
    summarise(Count = sum(value, na.rm = T))%>%
    mutate(TotBins=TotBins$Freq
-          [match(`Site Name`,TotBins$Var1)])%>%
-   mutate(Freq=Count/TotBins)%>%
-   mutate(Ind=Human_indicators$Indicator
-          [match(variable,Human_indicators$`Group (Taxa)`)])%>%
-   ggplot(aes(x=variable,y=Freq, fill=Ind))+
+          [match(`Site Name`,TotBins$Var1)],
+          Freq=Count/TotBins,
+          Ind=Human_indicators$Indicator
+          [match(variable,Human_indicators$`Group (Taxa)`)],
+          Short=ForLegend$Abbreviation
+          [match(variable,ForLegend$Indicator)])%>%
+   ggplot(aes(x=Short,y=Freq, fill=Ind))+
    geom_bar(stat = "identity")+
    facet_wrap(~`Site Name`,ncol = 2)+
    theme_bw()+
    theme(axis.text.x = element_text(angle = 60, hjust=1))+
    scale_fill_discrete(guide=FALSE)+
-   scale_x_discrete(label=function(x) abbreviate(x, 2))+
-    labs(x="Indicator")+
-   ggtitle("Relative frequency of indicators, Ecuador",
-           subtitle = "Proportion of number of bins indicators found/ number of bins covered in a record" )  
+    labs(x="Indicator",
+         y="Relative frequency")+
+   ggtitle("Proportion of number of bins indicators found/ number of bins covered , per site (Ecuador)")
  
  g_1 <- grid.force(ggplotGrob(p))
  
- # add table(from fig 6) and legend extracted from FIG.2, legend from plot 6b
- 
+ # add table(from fig 6) and legend extracted from FIG.2, legend from plot 5b_Col
  grid.newpage()
- vp1 <- viewport(width = 0.75, height = 1, x = 0.35, y = .5)
- vpleg <- viewport(width = 0.25, height = 1, x = 0.87, y = 0.5)
- vplegI<- viewport(width = 0.1, height = 0.2, x = 0.8, y = 0.9)
+ vp1 <- viewport(width = 0.75, height = 0.8, x = 0.4, y = .55)
+ vpleg <- viewport(width = 0.25, height = 1, x = 0.9, y = 0.55)
+ vplegI<- viewport(width = 0.1, height = 0.1, x = 0.4, y = 0.1)
  
  upViewport(0)
  pushViewport(vp1)
@@ -1803,36 +1272,31 @@ Datasheet_sh.ind.full$`Site Name`<-fct_reorder(Datasheet_sh.ind.full$`Site Name`
    group_by(`Site Name`,variable) %>%
    summarise(Count = sum(value, na.rm = T))%>%
    mutate(TotBins=TotBins$Freq
-          [match(`Site Name`,TotBins$Var1)])%>%
-   mutate(Freq=Count/TotBins)%>%
-   mutate(Ind=Human_indicators$Indicator
-          [match(variable,Human_indicators$`Group (Taxa)`)])%>%
-   ggplot(aes(x=variable,y=Freq, fill=Ind))+
+          [match(`Site Name`,TotBins$Var1)],
+          Freq=Count/TotBins,
+          Ind=Human_indicators$Indicator
+          [match(variable,Human_indicators$`Group (Taxa)`)],
+          Short=ForLegend$Abbreviation
+          [match(variable,ForLegend$Indicator)])%>%
+   ggplot(aes(x=Short,y=Freq, fill=Ind))+
    geom_bar(stat = "identity")+
    facet_wrap(~`Site Name`)+
    theme_bw()+
    theme(axis.text.x = element_text(angle = 60, hjust=1))+
-   #guides(fill = guide_legend(nrow = 1))+
    scale_fill_discrete(guide=FALSE)+
-   scale_x_discrete(label=function(x) abbreviate(x, 2))+
     labs(x="Indicator",
+         y="Relative frequency",
          fill="Indicator")+
-   ggtitle("Relative frequency of indicators, Venezuela",
-           subtitle = "Proportion of number of bins indicators found/ number of bins covered in a record" )  
+   ggtitle("Proportion of number of bins indicators found/ number of bins covered , per site (Venezuela)") 
  
  g_1 <- grid.force(ggplotGrob(p))
  
- # extract legend from plot
- legend_di<-get_legend(g_1)
- 
- # add scale_fill_dscete to original plot p
- 
- # add table(from fig 6) and legend extracted from FIG.2, legend from plot 6b
+ # add table(from fig 6) and legend extracted from FIG.2, legend from plot 5b_Col
  
  grid.newpage()
- vp1 <- viewport(width = 0.75, height = .5, x = 0.35, y = .6)
- vpleg <- viewport(width = 0.25, height = 1, x = 0.87, y = 0.55)
- vplegI<- viewport(width = 0.1, height = 0.2, x = 0.4, y = 0.25)
+ vp1 <- viewport(width = 0.75, height = 0.8, x = 0.4, y = .55)
+ vpleg <- viewport(width = 0.25, height = 1, x = 0.9, y = 0.55)
+ vplegI<- viewport(width = 0.1, height = 0.1, x = 0.4, y = 0.1)
  
  upViewport(0)
  pushViewport(vp1)
@@ -1856,28 +1320,24 @@ Datasheet_sh.ind.full$`Site Name`<-fct_reorder(Datasheet_sh.ind.full$`Site Name`
    group_by(`Site Name`,variable) %>%
    summarise(Count = sum(value, na.rm = T))%>%
    mutate(TotBins=TotBins$Freq
-          [match(`Site Name`,TotBins$Var1)])%>%
-   mutate(Freq=Count/TotBins)%>%
-   mutate(Ind=Human_indicators$Indicator
-          [match(variable,Human_indicators$`Group (Taxa)`)])%>%
-   ggplot(aes(x=variable,y=Freq, fill=Ind))+
+          [match(`Site Name`,TotBins$Var1)],
+          Freq=Count/TotBins,
+          Ind=Human_indicators$Indicator
+          [match(variable,Human_indicators$`Group (Taxa)`)],
+          Short=ForLegend$Abbreviation
+          [match(variable,ForLegend$Indicator)])%>%
+   ggplot(aes(x=Short,y=Freq, fill=Ind))+
    geom_bar(stat = "identity")+
    facet_wrap(~`Site Name`)+
    theme_bw()+
    theme(axis.text.x = element_text(angle = 60, hjust=1))+
    scale_fill_discrete(guide=FALSE)+
-   scale_x_discrete(label=function(x) abbreviate(x, 2))+
     labs(x="Indicator",
+         y="Relative frequency",
          fill="Indicator")+ 
-   ggtitle("Relative frequency of indicators, between 1k and 2k m Altitude",
-           subtitle = "Proportion of number of bins indicators found/ number of bins covered in a record" ) 
+   ggtitle( "Proportion of number of bins indicators found/ number of bins covered, per site (between 1k and 2k masl)")
  
  g_1 <- grid.force(ggplotGrob(p))   #df to see the right path of text title
- 
- # extract legend from plot
- legend_di<-get_legend(g_1)
- 
- # add scale_fill_dscete to original plot p
  
  grobs_df <- do.call(cbind.data.frame, grid.ls(g_1, print = FALSE)) 
  grobs_df$gPath_full <- paste(grobs_df$gPath, grobs_df$name, sep = "::") # Build optimal gPaths that will be later used to identify grobs and edit them
@@ -1901,13 +1361,13 @@ Datasheet_sh.ind.full$`Site Name`<-fct_reorder(Datasheet_sh.ind.full$`Site Name`
  } # Edit the grobs
 
  
- # add table(from fig 6), legend extracted from FIG.2, legend extracted from this plot
+ # add table(from fig 6), legend extracted from FIG.2, legend fron fig 05b_2k
  
  grid.newpage()
- vp1 <- viewport(width = 0.75, height = 1, x = 0.35, y = .5)
- vpleg <- viewport(width = 0.22, height = 1, x = 0.87, y = 0.5)
- vplegC <- viewport(width = 0.1, height = 0.2, x = 0.8, y = 0.9)
- vplegI<- viewport(width = 0.1, height = 0.2, x = 0.9, y = 0.9)
+ vp1 <- viewport(width = 0.75, height = 0.8, x = 0.4, y = .6)
+ vpleg <- viewport(width = 0.25, height = 1, x = 0.9, y = 0.6)
+ vplegC <- viewport(width = 0.1, height = 0.1, x = 0.4, y = 0.1)
+ vplegI<- viewport(width = 0.1, height = 0.1, x = 0.5, y = 0.1)
  
  upViewport(0)
  pushViewport(vp1)
@@ -1916,7 +1376,6 @@ Datasheet_sh.ind.full$`Site Name`<-fct_reorder(Datasheet_sh.ind.full$`Site Name`
  upViewport(0)
  pushViewport(vpleg)
  grid.draw(my_table)
- 
  
  upViewport(0)
  pushViewport(vplegC)
@@ -1934,20 +1393,22 @@ Datasheet_sh.ind.full$`Site Name`<-fct_reorder(Datasheet_sh.ind.full$`Site Name`
    group_by(`Site Name`,variable) %>%
    summarise(Count = sum(value, na.rm = T))%>%
    mutate(TotBins=TotBins$Freq
-          [match(`Site Name`,TotBins$Var1)])%>%
-   mutate(Freq=Count/TotBins)%>%
-   mutate(Ind=Human_indicators$Indicator
-          [match(variable,Human_indicators$`Group (Taxa)`)])%>%
-   ggplot(aes(x=variable,y=Freq, fill=Ind))+
+          [match(`Site Name`,TotBins$Var1)],
+          Freq=Count/TotBins,
+          Ind=Human_indicators$Indicator
+          [match(variable,Human_indicators$`Group (Taxa)`)],
+          Short=ForLegend$Abbreviation
+          [match(variable,ForLegend$Indicator)])%>%
+   ggplot(aes(x=Short,y=Freq, fill=Ind))+
    geom_bar(stat = "identity")+
    facet_wrap(~`Site Name`)+
    theme_bw()+
    theme(axis.text.x = element_text(angle = 60, hjust=1))+
    scale_fill_discrete(guide=FALSE)+
-   scale_x_discrete(label=function(x) abbreviate(x, 2))+
-    labs(x="Indicator")+ 
-   ggtitle("Relative frequency of indicators, between 2000 and 3000 m of altitude",
-           subtitle = "Proportion of number of bins indicators found/ number of bins covered in a record" )
+   labs(x="Indicator",
+        y="Relative frequency",
+        fill="Indicator")+ 
+   ggtitle( "Proportion of number of bins indicators found/ number of bins covered, per site (between 2k and 3k masl)")
  
  
  g_1 <- grid.force(ggplotGrob(p))   #df to see the right path of text title
@@ -1972,13 +1433,14 @@ Datasheet_sh.ind.full$`Site Name`<-fct_reorder(Datasheet_sh.ind.full$`Site Name`
    g_1 <- editGrob(grob = g_1, gPath = strip_txt_gpath[i], gp = gpar(col = txt_colors[i]))
  } # Edit the grobs
  
- # add table(from fig 6), legend extracted from FIG.2, legend extracted from this plot
+ # add table(from fig 6), legend extracted from FIG.2, legend extracted from 05b_2k
  
  grid.newpage()
- vp1 <- viewport(width = 0.75, height = 1, x = 0.35, y = .5)
- vpleg <- viewport(width = 0.22, height = 1, x = 0.87, y = 0.5)
- vplegC <- viewport(width = 0.1, height = 0.2, x = 0.8, y = 0.9)
- vplegI<- viewport(width = 0.1, height = 0.2, x = 0.9, y = 0.9)
+ vp1 <- viewport(width = 0.75, height = 0.8, x = 0.4, y = .6)
+ vpleg <- viewport(width = 0.25, height = 1, x = 0.9, y = 0.6)
+ vplegC <- viewport(width = 0.1, height = 0.1, x = 0.4, y = 0.1)
+ vplegI<- viewport(width = 0.1, height = 0.1, x = 0.5, y = 0.1)
+ 
  
  upViewport(0)
  pushViewport(vp1)
@@ -1987,7 +1449,6 @@ Datasheet_sh.ind.full$`Site Name`<-fct_reorder(Datasheet_sh.ind.full$`Site Name`
  upViewport(0)
  pushViewport(vpleg)
  grid.draw(my_table)
- 
  
  upViewport(0)
  pushViewport(vplegC)
@@ -2005,21 +1466,22 @@ Datasheet_sh.ind.full$`Site Name`<-fct_reorder(Datasheet_sh.ind.full$`Site Name`
    group_by(`Site Name`,variable) %>%
    summarise(Count = sum(value, na.rm = T))%>%
    mutate(TotBins=TotBins$Freq
-          [match(`Site Name`,TotBins$Var1)])%>%
-   mutate(Freq=Count/TotBins)%>%
-   mutate(Ind=Human_indicators$Indicator
-          [match(variable,Human_indicators$`Group (Taxa)`)])%>%
-   ggplot(aes(x=variable,y=Freq, fill=Ind))+
+          [match(`Site Name`,TotBins$Var1)],
+          Freq=Count/TotBins,
+          Ind=Human_indicators$Indicator
+          [match(variable,Human_indicators$`Group (Taxa)`)],
+          Short=ForLegend$Abbreviation
+          [match(variable,ForLegend$Indicator)])%>%
+   ggplot(aes(x=Short,y=Freq, fill=Ind))+
    geom_bar(stat = "identity")+
    facet_wrap(~`Site Name`)+
    theme_bw()+
    theme(axis.text.x = element_text(angle = 60, hjust=1))+
    scale_fill_discrete(guide=FALSE)+
-   scale_x_discrete(label=function(x) abbreviate(x, 2))+
-    labs(x="Indicator")+ 
-   ggtitle("Relative frequency of indicators, between 3000 m and max altitude where sites found",
-           subtitle = "Proportion of number of bins indicators found/ number of bins covered in a record" )
- 
+   labs(x="Indicator",
+        y="Relative frequency",
+        fill="Indicator")+ 
+   ggtitle( "Proportion of number of bins indicators found/ number of bins covered, per site (between 3k and 4215 masl)")
  
  
  g_1 <- grid.force(ggplotGrob(p))   #df to see the right path of text title
@@ -2051,10 +1513,11 @@ Datasheet_sh.ind.full$`Site Name`<-fct_reorder(Datasheet_sh.ind.full$`Site Name`
  # add table(from fig 6), legend extracted from FIG.2, legend extracted from this plot
  
  grid.newpage()
- vp1 <- viewport(width = 0.75, height = 1, x = 0.35, y = .5)
- vpleg <- viewport(width = 0.22, height = 1, x = 0.87, y = 0.5)
- vplegC <- viewport(width = 0.1, height = 0.2, x = 0.8, y = 0.9)
- vplegI<- viewport(width = 0.1, height = 0.2, x = 0.9, y = 0.9)
+ vp1 <- viewport(width = 0.75, height = 0.8, x = 0.4, y = .6)
+ vpleg <- viewport(width = 0.25, height = 1, x = 0.9, y = 0.6)
+ vplegC <- viewport(width = 0.1, height = 0.1, x = 0.4, y = 0.1)
+ vplegI<- viewport(width = 0.1, height = 0.1, x = 0.5, y = 0.1)
+ 
  
  upViewport(0)
  pushViewport(vp1)
@@ -2075,490 +1538,26 @@ Datasheet_sh.ind.full$`Site Name`<-fct_reorder(Datasheet_sh.ind.full$`Site Name`
  
  
 
-#### FIGURE 6c----------------------------------
-# relative freq
-
-p<- reshape2::melt(Datasheet_sh.ind.full.sort%>%
-                     select(-c("Latitude"))) %>%
-  group_by(`Site Name`,variable) %>%
-  summarise(Count = sum(value, na.rm = T))%>%
-  mutate(TotBins=TotBins$Freq
-         [match(`Site Name`,TotBins$Var1)])%>%
-  mutate(Freq=Count/TotBins)%>%
-  mutate(Pot=Human_indicators$`Potential food source`
-         [match(variable,Human_indicators$`Group (Taxa)`)])%>%
-  ggplot(aes(x=variable,y=Freq, fill=Pot))+
-  geom_bar(stat = "identity")+
-  facet_wrap(~`Site Name`)+
-  theme_bw()+
-  theme(axis.text.x = element_text(angle = 60, hjust=1))+
-  scale_fill_discrete(guide= F)+
-  scale_x_discrete(label=function(x) abbreviate(x, 2))+
-    labs(x="Indicator",
-         fill="Potential food")+
-  ggtitle("Relative frequency of indicators",
-          subtitle = "Proportion of number of bins indicators found/ number of bins covered in a record" )
-
-g_1 <- grid.force(ggplotGrob(p))   #df to see the right path of text title
-
-# extract legend from plot
-legend_di<-get_legend(g_1)
-
-# add scale_fill_dscete to original plot p
-
-grobs_df <- do.call(cbind.data.frame, grid.ls(g_1, print = FALSE)) 
-grobs_df$gPath_full <- paste(grobs_df$gPath, grobs_df$name, sep = "::") # Build optimal gPaths that will be later used to identify grobs and edit them
-grobs_df$gPath_full <- gsub(pattern = "layout::", 
-                            replacement = "", 
-                            x = grobs_df$gPath_full, 
-                            fixed = TRUE)
-
-strip_bg_gpath <- grobs_df$gPath_full[grepl(pattern = ".*strip\\.background.*", # Get the gPaths of the strip background grob
-                                            x = grobs_df$gPath_full)]
-strip_txt_gpath <- grobs_df$gPath_full[grepl(pattern = "strip.*titleGrob.*text.*", # Get the gPaths of the strip titles
-                                             x = grobs_df$gPath_full)]
-
-fills <-  c(rep("#636363",17), # vector of colors to fill rectangles
-            rep("#BDBDBD",2),
-            rep("#636363",5),
-            rep( "#BDBDBD",7),
-            rep( "#F0F0F0",2),
-            rep( "#BDBDBD",5)) 
-
-txt_colors <- c(rep("white",17), # vector of colors for text
-                rep("black",2),
-                rep("white",5),
-                rep( "black",7),
-                rep( "black",2),
-                rep( "black",5))
-
-for (i in 1:length(strip_bg_gpath)){
-  g_1 <- editGrob(grob = g_1, gPath = strip_bg_gpath[i], gp = gpar(fill = fills[i]))
-  g_1 <- editGrob(grob = g_1, gPath = strip_txt_gpath[i], gp = gpar(col = txt_colors[i]))
-} # Edit the grobs
-
-# add table(from fig 6) and legend extracted from FIG.2
-
-grid.newpage()
-vp1 <- viewport(width = 0.75, height = 1, x = 0.35, y = .5)
-vpleg <- viewport(width = 0.22, height = 1, x = 0.87, y = 0.5)
-vplegI<- viewport(width = 0.1, height = 0.2, x = 0.9, y = 0.9)
-
-upViewport(0)
-pushViewport(vp1)
-grid.draw(g_1)
-
-upViewport(0)
-pushViewport(vpleg)
-grid.draw(my_table)
-
-
-upViewport(0)
-pushViewport(vplegC)
-grid.draw(legend)
-
-upViewport(0)
-pushViewport(vplegI)
-grid.draw(legend_di)
-
-#### FIGURE 6c_Colombia----------------------------------------
-## split plot per countries
-p<- reshape2::melt(Datasheet_sh.ind.full.sort%>%
-                     mutate(Country=Datasheet_sh.full$Country)%>%
-                     filter(Country== "Colombia")%>%
-                     select(-c("Latitude"))) %>%
-  group_by(`Site Name`,variable) %>%
-  summarise(Count = sum(value, na.rm = T))%>%
-  mutate(TotBins=TotBins$Freq
-         [match(`Site Name`,TotBins$Var1)])%>%
-  mutate(Freq=Count/TotBins)%>%
-  mutate(Ind=Human_indicators$Indicator
-         [match(variable,Human_indicators$`Group (Taxa)`)])%>%
-  mutate(Pot=Human_indicators$`Potential food source`
-         [match(variable,Human_indicators$`Group (Taxa)`)])%>%
-  ggplot(aes(x=variable,y=Freq, fill=Pot))+
-  geom_bar(stat = "identity")+
-  facet_wrap(~`Site Name`,ncol = 2)+
-  theme_bw()+
-  theme(axis.text.x = element_text(angle = 60, hjust=1))+
-  scale_fill_discrete(guide=FALSE)+
-  scale_x_discrete(label=function(x) abbreviate(x, 2))+
-   labs(x="Indicator")+
-  ggtitle("Relative frequency of indicators, Colombia",
-          subtitle = "Proportion of number of bins indicators found/ number of bins covered in a record" ) 
-
-g_1 <- grid.force(ggplotGrob(p))
-
-# extract legend from plot
-legend_di<-get_legend(g_1)
-
-# add scale_fill_dscete to original plot p
-
-# add table(from fig 6) and legend extracted from FIG.2, legend from plot 6b
-
-grid.newpage()
-vp1 <- viewport(width = 0.75, height = 1, x = 0.35, y = .5)
-vpleg <- viewport(width = 0.25, height = 1, x = 0.87, y = 0.5)
-vplegI<- viewport(width = 0.1, height = 0.2, x = 0.84, y = 0.9)
-
-upViewport(0)
-pushViewport(vp1)
-grid.draw(g_1)
-
-upViewport(0)
-pushViewport(vpleg)
-grid.draw(my_table)
-
-upViewport(0)
-pushViewport(vplegI)
-grid.draw(legend_di)
-
-#### FIGURE 6c_Ecuador----------------------------------------
-## split plot per countries
-p<- reshape2::melt(Datasheet_sh.ind.full.sort%>%
-                     mutate(Country=Datasheet_sh.full$Country)%>%
-                     filter(Country== "Ecuador")%>%
-                     select(-c("Latitude"))) %>%
-  group_by(`Site Name`,variable) %>%
-  summarise(Count = sum(value, na.rm = T))%>%
-  mutate(TotBins=TotBins$Freq
-         [match(`Site Name`,TotBins$Var1)])%>%
-  mutate(Freq=Count/TotBins)%>%
-  mutate(Ind=Human_indicators$Indicator
-         [match(variable,Human_indicators$`Group (Taxa)`)])%>%
-  mutate(Pot=Human_indicators$`Potential food source`
-         [match(variable,Human_indicators$`Group (Taxa)`)])%>%
-  ggplot(aes(x=variable,y=Freq, fill=Pot))+
-  geom_bar(stat = "identity")+
-  facet_wrap(~`Site Name`,ncol = 2)+
-  theme_bw()+
-  theme(axis.text.x = element_text(angle = 60, hjust=1))+
-  scale_fill_discrete(guide=FALSE)+
-  scale_x_discrete(label=function(x) abbreviate(x, 2))+
-   labs(x="Indicator")+
-  ggtitle("Relative frequency of indicators,, Ecuador",
-          subtitle = "Proportion of number of bins indicators found/ number of bins covered in a record" )  
-
-g_1 <- grid.force(ggplotGrob(p))
-
-
-# add scale_fill_dscete to original plot p
-
-# add table(from fig 6) and legend extracted from FIG.2, legend from plot 6b
-
-grid.newpage()
-vp1 <- viewport(width = 0.75, height = 1, x = 0.35, y = .5)
-vpleg <- viewport(width = 0.25, height = 1, x = 0.87, y = 0.5)
-vplegI<- viewport(width = 0.1, height = 0.2, x = 0.84, y = 0.9)
-
-upViewport(0)
-pushViewport(vp1)
-grid.draw(g_1)
-
-upViewport(0)
-pushViewport(vpleg)
-grid.draw(my_table)
-
-upViewport(0)
-pushViewport(vplegI)
-grid.draw(legend_di)
-
-#### FIGURE 6c_Venezuela----------------------------------------
-## split plot per countries
-p<- reshape2::melt(Datasheet_sh.ind.full.sort%>%
-                     mutate(Country=Datasheet_sh.full$Country)%>%
-                     filter(Country== "Venezuela")%>%
-                     select(-c("Latitude"))) %>%
-  group_by(`Site Name`,variable) %>%
-  summarise(Count = sum(value, na.rm = T))%>%
-  mutate(TotBins=TotBins$Freq
-         [match(`Site Name`,TotBins$Var1)])%>%
-  mutate(Freq=Count/TotBins)%>%
-  mutate(Ind=Human_indicators$Indicator
-         [match(variable,Human_indicators$`Group (Taxa)`)])%>%
-  mutate(Pot=Human_indicators$`Potential food source`
-         [match(variable,Human_indicators$`Group (Taxa)`)])%>%
-  ggplot(aes(x=variable,y=Freq, fill=Pot))+
-  geom_bar(stat = "identity")+
-  facet_wrap(~`Site Name`)+
-  theme_bw()+
-  theme(axis.text.x = element_text(angle = 60, hjust=1))+
-  scale_fill_discrete(guide=FALSE)+
-  scale_x_discrete(label=function(x) abbreviate(x, 2))+
- # guides(fill = guide_legend(nrow = 1))+
-   labs(x="Indicator",
-        fill="Potential food")+
-  ggtitle("Relative frequency of indicators,, Venezuela",
-          subtitle = "Proportion of number of bins indicators found/ number of bins covered in a record" )  
-
-g_1 <- grid.force(ggplotGrob(p))
-
-# extract legend from plot
-legend_di<-get_legend(g_1)
-# add scale_fill_dscete to original plot p
-
-# add table(from fig 6) and legend extracted from FIG.2, legend from plot 6b
-
-grid.newpage()
-vp1 <- viewport(width = 0.75, height = .5, x = 0.35, y = .6)
-vpleg <- viewport(width = 0.25, height = 1, x = 0.87, y = 0.6)
-vplegI<- viewport(width = 0.1, height = 0.2, x = 0.4, y = 0.25)
-
-upViewport(0)
-pushViewport(vp1)
-grid.draw(g_1)
-
-upViewport(0)
-pushViewport(vpleg)
-grid.draw(my_table)
-
-upViewport(0)
-pushViewport(vplegI)
-grid.draw(legend_di)
-
-# FIGURE 6c_under 2k mt-------------------------------------------------
-
-p<- reshape2::melt(Datasheet_sh.ind.full%>%
-                     mutate(Altitude=Datasheet_sh.full$Altitude)%>%
-                     filter(Altitude < 2000)%>%
-                     select(-c("Latitude", "Altitude"))) %>%
-  group_by(`Site Name`,variable) %>%
-  summarise(Count = sum(value, na.rm = T))%>%
-  mutate(TotBins=TotBins$Freq
-         [match(`Site Name`,TotBins$Var1)])%>%
-  mutate(Freq=Count/TotBins)%>%
-  mutate(Pot=Human_indicators$`Potential food source`
-         [match(variable,Human_indicators$`Group (Taxa)`)])%>%
-  ggplot(aes(x=variable,y=Freq, fill=Pot))+
-  geom_bar(stat = "identity")+
-  facet_wrap(~`Site Name`)+
-  theme_bw()+
-  theme(axis.text.x = element_text(angle = 60, hjust=1))+
-  scale_fill_discrete(guide=FALSE)+
-  scale_x_discrete(label=function(x) abbreviate(x, 2))+
-  labs(x="Indicator",
-       fill="Potential food")+
-  ggtitle("Relative frequency of indicators, between 1k and 2k m Altitude",
-          subtitle = "Proportion of number of bins indicators found/ number of bins covered in a record" )
-
-g_1 <- grid.force(ggplotGrob(p))   #df to see the right path of text title
-
-# extract legend from plot
-legend_di<-get_legend(g_1)
-
-# add scale_fill_dscete to original plot p
-
-grobs_df <- do.call(cbind.data.frame, grid.ls(g_1, print = FALSE)) 
-grobs_df$gPath_full <- paste(grobs_df$gPath, grobs_df$name, sep = "::") # Build optimal gPaths that will be later used to identify grobs and edit them
-grobs_df$gPath_full <- gsub(pattern = "layout::", 
-                            replacement = "", 
-                            x = grobs_df$gPath_full, 
-                            fixed = TRUE)
-
-strip_bg_gpath <- grobs_df$gPath_full[grepl(pattern = ".*strip\\.background.*", # Get the gPaths of the strip background grob
-                                            x = grobs_df$gPath_full)]
-strip_txt_gpath <- grobs_df$gPath_full[grepl(pattern = "strip.*titleGrob.*text.*", # Get the gPaths of the strip titles
-                                             x = grobs_df$gPath_full)]
-
-fills <-  c( rep("#BDBDBD",5)) # vector of colors to fill rectangles
-
-txt_colors <- c(rep("black",5)) # vector of colors for text
-
-for (i in 1:length(strip_bg_gpath)){
-  g_1 <- editGrob(grob = g_1, gPath = strip_bg_gpath[i], gp = gpar(fill = fills[i]))
-  g_1 <- editGrob(grob = g_1, gPath = strip_txt_gpath[i], gp = gpar(col = txt_colors[i]))
-} # Edit the grobs
-
-
-
-
-# add table(from fig 6), legend extracted from FIG.2, legend extracted from this plot
-
-grid.newpage()
-vp1 <- viewport(width = 0.75, height = 1, x = 0.35, y = .5)
-vpleg <- viewport(width = 0.22, height = 1, x = 0.87, y = 0.5)
-vplegC <- viewport(width = 0.1, height = 0.2, x = 0.8, y = 0.9)
-vplegI<- viewport(width = 0.1, height = 0.2, x = 0.9, y = 0.9)
-
-upViewport(0)
-pushViewport(vp1)
-grid.draw(g_1)
-
-upViewport(0)
-pushViewport(vpleg)
-grid.draw(my_table)
-
-
-upViewport(0)
-pushViewport(vplegC)
-grid.draw(legend)
-
-upViewport(0)
-pushViewport(vplegI)
-grid.draw(legend_di)
-
-# FIGURE 6c_between 2 and 3k mt-------------------------------------------------
-p<- reshape2::melt(Datasheet_sh.ind.full%>%
-                     mutate(Altitude=Datasheet_sh.full$Altitude)%>%
-                     filter(Altitude %in% 2000:3000)%>%
-                     select(-c("Latitude", "Altitude"))) %>%
-  group_by(`Site Name`,variable) %>%
-  summarise(Count = sum(value, na.rm = T))%>%
-  mutate(TotBins=TotBins$Freq
-         [match(`Site Name`,TotBins$Var1)])%>%
-  mutate(Freq=Count/TotBins)%>%
-  mutate(Pot=Human_indicators$`Potential food source`
-         [match(variable,Human_indicators$`Group (Taxa)`)])%>%
-  ggplot(aes(x=variable,y=Freq, fill=Pot))+
-  geom_bar(stat = "identity")+
-  facet_wrap(~`Site Name`)+
-  theme_bw()+
-  theme(axis.text.x = element_text(angle = 60, hjust=1))+
-  scale_fill_discrete(guide=FALSE)+
-  scale_x_discrete(label=function(x) abbreviate(x, 2))+
-  labs(x="Indicator",
-       fill="Potential food")+
-  ggtitle("Relative frequency of indicators, between 2000 and 3000 m of altitude",
-          subtitle = "Proportion of number of bins indicators found/ number of bins covered in a record" )
-
-
-g_1 <- grid.force(ggplotGrob(p))   #df to see the right path of text title
-grobs_df <- do.call(cbind.data.frame, grid.ls(g_1, print = FALSE)) 
-grobs_df$gPath_full <- paste(grobs_df$gPath, grobs_df$name, sep = "::") # Build optimal gPaths that will be later used to identify grobs and edit them
-grobs_df$gPath_full <- gsub(pattern = "layout::", 
-                            replacement = "", 
-                            x = grobs_df$gPath_full, 
-                            fixed = TRUE)
-
-strip_bg_gpath <- grobs_df$gPath_full[grepl(pattern = ".*strip\\.background.*", # Get the gPaths of the strip background grob
-                                            x = grobs_df$gPath_full)]
-strip_txt_gpath <- grobs_df$gPath_full[grepl(pattern = "strip.*titleGrob.*text.*", # Get the gPaths of the strip titles
-                                             x = grobs_df$gPath_full)]
-
-fills <-  c(rep ("#636363",6) ,rep("#BDBDBD",2),rep ("#636363",1)) # vector of colors to fill rectangles
-
-txt_colors <- c(rep("white",6),rep("black",2), rep("white",1)) # vector of colors for text
-
-for (i in 1:length(strip_bg_gpath)){
-  g_1 <- editGrob(grob = g_1, gPath = strip_bg_gpath[i], gp = gpar(fill = fills[i]))
-  g_1 <- editGrob(grob = g_1, gPath = strip_txt_gpath[i], gp = gpar(col = txt_colors[i]))
-} # Edit the grobs
-
-
-# add table(from fig 6), legend extracted from FIG.2, legend extracted from this plot
-
-grid.newpage()
-vp1 <- viewport(width = 0.75, height = 1, x = 0.35, y = .5)
-vpleg <- viewport(width = 0.22, height = 1, x = 0.87, y = 0.5)
-vplegC <- viewport(width = 0.1, height = 0.2, x = 0.8, y = 0.9)
-vplegI<- viewport(width = 0.1, height = 0.2, x = 0.9, y = 0.9)
-
-upViewport(0)
-pushViewport(vp1)
-grid.draw(g_1)
-
-upViewport(0)
-pushViewport(vpleg)
-grid.draw(my_table)
-
-
-upViewport(0)
-pushViewport(vplegC)
-grid.draw(legend)
-
-upViewport(0)
-pushViewport(vplegI)
-grid.draw(legend_di)
-
-# FIGURE 6c_between 3 and 4k mt-------------------------------------------------
-p<- reshape2::melt(Datasheet_sh.ind.full%>%
-                     mutate(Altitude=Datasheet_sh.full$Altitude)%>%
-                     filter(Altitude %in% 3000:4215)%>%
-                     select(-c("Latitude", "Altitude"))) %>%
-  group_by(`Site Name`,variable) %>%
-  summarise(Count = sum(value, na.rm = T))%>%
-  mutate(TotBins=TotBins$Freq
-         [match(`Site Name`,TotBins$Var1)])%>%
-  mutate(Freq=Count/TotBins)%>%
-  mutate(Pot=Human_indicators$`Potential food source`
-         [match(variable,Human_indicators$`Group (Taxa)`)])%>%
-  ggplot(aes(x=variable,y=Freq, fill=Pot))+
-  geom_bar(stat = "identity")+
-  facet_wrap(~`Site Name`)+
-  theme_bw()+
-  theme(axis.text.x = element_text(angle = 60, hjust=1))+
-  scale_fill_discrete(guide=FALSE)+
-  scale_x_discrete(label=function(x) abbreviate(x, 2))+
-  labs(x="Indicator")+
-  ggtitle("Relative frequency of indicators, between 3000 m and max altitude where sites found",
-          subtitle = "Proportion of number of bins indicators found/ number of bins covered in a record" ) 
-
-
-g_1 <- grid.force(ggplotGrob(p))   #df to see the right path of text title
-grobs_df <- do.call(cbind.data.frame, grid.ls(g_1, print = FALSE)) 
-grobs_df$gPath_full <- paste(grobs_df$gPath, grobs_df$name, sep = "::") # Build optimal gPaths that will be later used to identify grobs and edit them
-grobs_df$gPath_full <- gsub(pattern = "layout::", 
-                            replacement = "", 
-                            x = grobs_df$gPath_full, 
-                            fixed = TRUE)
-
-strip_bg_gpath <- grobs_df$gPath_full[grepl(pattern = ".*strip\\.background.*", # Get the gPaths of the strip background grob
-                                            x = grobs_df$gPath_full)]
-strip_txt_gpath <- grobs_df$gPath_full[grepl(pattern = "strip.*titleGrob.*text.*", # Get the gPaths of the strip titles
-                                             x = grobs_df$gPath_full)]
-
-fills <-  c(rep ("#636363",14) ,rep("#BDBDBD",4),
-            rep ("#636363",1),rep( "#F0F0F0",2),
-            rep ("#BDBDBD",3)) # vector of colors to fill rectangles
-
-txt_colors <- c(rep("white",14),
-                rep("black",4), 
-                rep("white",1), rep("black",5)) # vector of colors for text
-
-for (i in 1:length(strip_bg_gpath)){
-  g_1 <- editGrob(grob = g_1, gPath = strip_bg_gpath[i], gp = gpar(fill = fills[i]))
-  g_1 <- editGrob(grob = g_1, gPath = strip_txt_gpath[i], gp = gpar(col = txt_colors[i]))
-} # Edit the grobs
-
-
-# add table(from fig 6), legend extracted from FIG.2, legend extracted from this plot
-
-grid.newpage()
-vp1 <- viewport(width = 0.75, height = 1, x = 0.35, y = .5)
-vpleg <- viewport(width = 0.22, height = 1, x = 0.87, y = 0.5)
-vplegC <- viewport(width = 0.1, height = 0.2, x = 0.8, y = 0.9)
-vplegI<- viewport(width = 0.1, height = 0.2, x = 0.9, y = 0.9)
-
-upViewport(0)
-pushViewport(vp1)
-grid.draw(g_1)
-
-upViewport(0)
-pushViewport(vpleg)
-grid.draw(my_table)
-
-
-upViewport(0)
-pushViewport(vplegC)
-grid.draw(legend)
-
-upViewport(0)
-pushViewport(vplegI)
-grid.draw(legend_di)
-
-
-
-#### FIGURE 7 ---------------------------------
+#### FIGURE 7 (discarded, hard to read) ---------------------------------
 ## in which sites are which indicators found and how often? 
 
-p<-reshape2::melt(Datasheet_sh.ind.full%>%
+dat<-reshape2::melt(Datasheet_sh.ind.full%>%
                  select(-c("Latitude"))) %>%
   group_by(variable,`Site Name`) %>%
   summarise(Count = sum(value, na.rm = T)) %>%
   mutate (Country=Datasheet_sh.full$Country
-          [match(`Site Name`, Datasheet_sh.full$`Site Name`)])%>%
-  ggplot(aes(x=`Site Name`, y=Count, fill= Country))+
-  scale_x_discrete(label=function(x) abbreviate(x, 2))+
+          [match(`Site Name`, Datasheet_sh.full$`Site Name`)],
+          Latitude=Datasheet_sh.full$Latitude
+          [match(`Site Name`, Datasheet_sh.full$`Site Name`)],
+        `Site Num` = rep(1:38,1))
+ 
+   dat$`Site Num`= factor(dat$`Site Num`)
+   dat$`Site Num`=fct_reorder(dat$`Site Num`,
+                -dat$Latitude)
+ 
+ 
+p<- dat%>%
+ ggplot(aes(x=`Site Num`, y=Count, fill= Country))+
   scale_fill_manual(values = c("#BDBDBD","#636363","#F0F0F0"), guide=F)+
   geom_bar(stat = "identity",colour="black")+
   facet_wrap(~variable)+
@@ -2570,11 +1569,8 @@ p<-reshape2::melt(Datasheet_sh.ind.full%>%
 g_1 <- grid.force(ggplotGrob(p)) 
  
 # create table as legend for the used abbreviations
-ToAbbr2<-Datasheet_sh.ind.full%>%distinct(`Site Name`)%>%pull()
-ForLegend2<-as.data.frame(abbreviate(ToAbbr2,2, named = T))
-ForLegend2<-rownames_to_column(ForLegend2, "Site Name")
-colnames(ForLegend2)[2]<-"Abbreviation"
-
+ForLegend2<-ToTable%>%select("Site Name")%>% rownames_to_column()
+colnames(ForLegend2)[1]<-"Abbreviation"
 
 my_table2 <- tableGrob( ForLegend2 ,theme = ttheme_default (base_size = 7, padding = unit(c(4,2),"mm")),
                        rows=NULL)
@@ -2597,40 +1593,65 @@ upViewport(0)
 pushViewport(vpleg)
 grid.draw(my_table2)
 
-
 upViewport(0)
 pushViewport(vplegC)
 grid.draw(legend)
 
 #### FIGURE 7 _Direct---------------------------------
 ## in which sites are Direct indicators found and how often? 
+dat<-reshape2::melt(Datasheet_sh.ind.full%>%
+                      select(-c("Latitude"))) %>%
+  group_by(variable,`Site Name`) %>%
+  summarise(Count = sum(value, na.rm = T)) %>%
+  mutate (Country=Datasheet_sh.full$Country
+          [match(`Site Name`, Datasheet_sh.full$`Site Name`)],
+          Latitude=Datasheet_sh.full$Latitude
+          [match(`Site Name`, Datasheet_sh.full$`Site Name`)],
+          `Site Num` = rep(1:38,1))
 
-p<-reshape2::melt(Datasheet_sh.ind.full%>%
-                  select(-c("Latitude"))) %>%
-   group_by(variable,`Site Name`) %>%
-   summarise(Count = sum(value, na.rm = T)) %>%
-   mutate (Country=Datasheet_sh.full$Country
-           [match(`Site Name`, Datasheet_sh.full$`Site Name`)],
-           Ind=Human_indicators$Indicator
+dat$`Site Num`= factor(dat$`Site Num`)
+dat$`Site Num`=fct_reorder(dat$`Site Num`,
+                           -dat$Latitude)
+
+
+p<-dat %>%
+   mutate (Ind=Human_indicators$Indicator
                   [match(variable,Human_indicators$`Group (Taxa)`)])%>%
    filter(Ind=="Direct") %>%
-   ggplot(aes(x=`Site Name`, y=Count, fill= Country))+
-   scale_x_discrete(label=function(x) abbreviate(x, 2))+
+   ggplot(aes(x=`Site Num`, y=Count, fill= Country))+
    scale_fill_manual(values = c("#BDBDBD","#636363","#F0F0F0"), guide=F)+
    geom_bar(stat = "identity",colour="black")+
    facet_wrap(~variable)+
    theme_bw()+
    theme(axis.text.x = element_text(angle = 60, hjust=1))+
-   ggtitle("Number of times direct indicators are found per Site")
+  labs(x="Site")+
+   ggtitle("Number of bins direct indicators are found per site")
 
 g_1 <- grid.force(ggplotGrob(p)) 
+
+# create table as legend for the used abbreviations
+# subset df
+ForLegend2<-Datasheet_shaved%>%
+  distinct(`Site Name`,Altitude,Latitude)
+
+# order df according to Country
+ForLegend2<-ForLegend2[order(-ForLegend2$Latitude),]
+
+ForLegend2<-ForLegend2%>%select(c("Site Name", "Altitude"))%>% rownames_to_column()
+colnames(ForLegend2)[1]<-"Abbreviation"
+colnames(ForLegend2)[3]<-"masl"
+
+my_table2 <- tableGrob( ForLegend2 ,theme = ttheme_default (base_size = 7, padding = unit(c(4,2),"mm")),
+                        rows=NULL)
+
+my_table2$widths <- unit(rep(1/ncol(my_table2), ncol(my_table2)), "npc")
 
 
 #do the same as fig 6, with plot and table from fig 7 and legend from fig 2
 grid.newpage()
-vp1 <- viewport(width = 0.75, height = 1, x = 0.35, y = .5)
-vpleg <- viewport(width = 0.22, height = 1, x = 0.87, y = 0.5)
-vplegC <- viewport(width = 0.2, height = 0.2, x = 0.8, y = 0.95)
+vp1 <- viewport(width = 0.75, height = 0.8, x = 0.4, y = .6)
+vpleg <- viewport(width = 0.25, height = 1, x = 0.9, y = 0.6)
+vplegC <- viewport(width = 0.1, height = 0.1, x = 0.4, y = 0.1)
 
 upViewport(0)
 pushViewport(vp1)
@@ -2640,7 +1661,6 @@ upViewport(0)
 pushViewport(vpleg)
 grid.draw(my_table2)
 
-
 upViewport(0)
 pushViewport(vplegC)
 grid.draw(legend)
@@ -2648,32 +1668,27 @@ grid.draw(legend)
 #### FIGURE 7 _Indirect---------------------------------
 ## in which sites are Direct indicators found and how often? 
 
-p<-reshape2::melt(Datasheet_sh.ind.full%>%
-                     select(-c("Latitude"))) %>%
-   group_by(variable,`Site Name`) %>%
-   summarise(Count = sum(value, na.rm = T)) %>%
-   mutate (Country=Datasheet_sh.full$Country
-           [match(`Site Name`, Datasheet_sh.full$`Site Name`)],
-           Ind=Human_indicators$Indicator
-           [match(variable,Human_indicators$`Group (Taxa)`)])%>%
+p<-dat %>%
+  mutate (Ind=Human_indicators$Indicator
+          [match(variable,Human_indicators$`Group (Taxa)`)])%>%
    filter(Ind=="Indirect") %>%
-   ggplot(aes(x=`Site Name`, y=Count, fill= Country))+
-   scale_x_discrete(label=function(x) abbreviate(x, 2))+
+   ggplot(aes(x=`Site Num`, y=Count, fill= Country))+
    scale_fill_manual(values = c("#BDBDBD","#636363","#F0F0F0"), guide=F)+
    geom_bar(stat = "identity",colour="black")+
    facet_wrap(~variable)+
    theme_bw()+
+  labs(x="Site")+
    theme(axis.text.x = element_text(angle = 60, hjust=1))+
-   ggtitle("Number of times indirect indicators are found per Site")
+   ggtitle("Number of bins indirect indicators are found per site")
 
 g_1 <- grid.force(ggplotGrob(p)) 
 
 
 #do the same as fig 6, with plot and table from fig 7 and legend from fig 2
 grid.newpage()
-vp1 <- viewport(width = 0.75, height = 1, x = 0.35, y = .5)
-vpleg <- viewport(width = 0.22, height = 1, x = 0.87, y = 0.5)
-vplegC <- viewport(width = 0.2, height = 0.2, x = 0.8, y = 0.95)
+vp1 <- viewport(width = 0.75, height = 0.8, x = 0.4, y = .6)
+vpleg <- viewport(width = 0.25, height = 1, x = 0.9, y = 0.6)
+vplegC <- viewport(width = 0.1, height = 0.1, x = 0.4, y = 0.1)
 
 upViewport(0)
 pushViewport(vp1)
@@ -2691,23 +1706,18 @@ grid.draw(legend)
 #### FIGURE 7 _High/ Low---------------------------------
 ## in which sites are indicators with food potential found and how often? 
 
-p<-reshape2::melt(Datasheet_sh.ind.full%>%
-                     select(-c("Latitude"))) %>%
-   group_by(variable,`Site Name`) %>%
-   summarise(Count = sum(value, na.rm = T)) %>%
-   mutate (Country=Datasheet_sh.full$Country
-           [match(`Site Name`, Datasheet_sh.full$`Site Name`)],
-           Pot=Human_indicators$`Potential food source`
+p<-dat%>%
+   mutate (Pot=Human_indicators$`Potential food source`
                   [match(variable,Human_indicators$`Group (Taxa)`)])%>%
    filter(Pot %in% c("high", "low")) %>%
-   ggplot(aes(x=`Site Name`, y=Count, fill= Country))+
-   scale_x_discrete(label=function(x) abbreviate(x, 2))+
+   ggplot(aes(x=`Site Num`, y=Count, fill= Country))+
    scale_fill_manual(values = c("#BDBDBD","#636363","#F0F0F0"), guide=F)+
    geom_bar(stat = "identity",colour="black")+
    facet_wrap(~variable, ncol = 2)+
    theme_bw()+
    theme(axis.text.x = element_text(angle = 60, hjust=1))+
-   ggtitle("Number of times indicators with food potential are found per Site")
+  labs(x="Site")+
+   ggtitle("Number of bins indicators with food potential are found, per site")
 
 g_1 <- grid.force(ggplotGrob(p)) 
 
@@ -2740,12 +1750,12 @@ for (i in 1:length(strip_bg_gpath)){
 } # Edit the grobs
 
 
-#do the same as fig 6, with plot and table from fig 7 and legend for countries from fig 2, legend for indicators from fig 13c
+#do the same as fig 6, with plot and table from fig 7 and legend for countries from fig 2, legend for indicators from fig 13b_Col
 grid.newpage()
-vp1 <- viewport(width = 0.75, height = 1, x = 0.35, y = .5)
-vpleg <- viewport(width = 0.22, height = 1, x = 0.87, y = 0.5)
-vplegC <- viewport(width = 0.1, height = 0.2, x = 0.8, y = 0.9)
-vplegI<- viewport(width = 0.1, height = 0.2, x = 0.9, y = 0.9)
+vp1 <- viewport(width = 0.75, height = 0.8, x = 0.4, y = .6)
+vpleg <- viewport(width = 0.25, height = 1, x = 0.9, y = 0.6)
+vplegC <- viewport(width = 0.1, height = 0.1, x = 0.4, y = 0.1)
+vplegI<- viewport(width = 0.1, height = 0.1, x = 0.5, y = 0.1)
 
 upViewport(0)
 pushViewport(vp1)
@@ -2754,7 +1764,6 @@ grid.draw(g_1)
 upViewport(0)
 pushViewport(vpleg)
 grid.draw(my_table2)
-
 
 upViewport(0)
 pushViewport(vplegC)
@@ -2762,39 +1771,34 @@ grid.draw(legend)
 
 upViewport(0)
 pushViewport(vplegI)
-grid.draw(legend_di)
+grid.draw(legend_hl)
 
 
 
 #### FIGURE 7 _No---------------------------------
 ## in which sites are  indicators with no food pot found and how often? 
 
-p<-reshape2::melt(Datasheet_sh.ind.full%>%
-                     select(-c("Latitude"))) %>%
-   group_by(variable,`Site Name`) %>%
-   summarise(Count = sum(value, na.rm = T)) %>%
-   mutate (Country=Datasheet_sh.full$Country
-           [match(`Site Name`, Datasheet_sh.full$`Site Name`)],
-           Pot=Human_indicators$`Potential food source`
-           [match(variable,Human_indicators$`Group (Taxa)`)])%>%
+p<-dat%>%
+  mutate (Pot=Human_indicators$`Potential food source`
+          [match(variable,Human_indicators$`Group (Taxa)`)])%>%
    filter(Pot=="no") %>%
-   ggplot(aes(x=`Site Name`, y=Count, fill= Country))+
-   scale_x_discrete(label=function(x) abbreviate(x, 2))+
+   ggplot(aes(x=`Site Num`, y=Count, fill= Country))+
    scale_fill_manual(values = c("#BDBDBD","#636363","#F0F0F0"), guide=F)+
    geom_bar(stat = "identity",colour="black")+
    facet_wrap(~variable)+
    theme_bw()+
    theme(axis.text.x = element_text(angle = 60, hjust=1))+
-   ggtitle("Number of times indicators with no food potential are found per Site")
+  labs(x="Site")+
+   ggtitle("Number of bins indicators with no food potential are found, per site")
 
 g_1 <- grid.force(ggplotGrob(p)) 
 
 
 #do the same as fig 6, with plot and table from fig 7 and legend for countries from fig 2
 grid.newpage()
-vp1 <- viewport(width = 0.75, height = 1, x = 0.35, y = .5)
-vpleg <- viewport(width = 0.22, height = 1, x = 0.87, y = 0.5)
-vplegC <- viewport(width = 0.1, height = 0.2, x = 0.8, y = 0.9)
+vp1 <- viewport(width = 0.75, height = 0.8, x = 0.4, y = .6)
+vpleg <- viewport(width = 0.25, height = 1, x = 0.9, y = 0.6)
+vplegC <- viewport(width = 0.1, height = 0.1, x = 0.4, y = 0.1)
 
 
 upViewport(0)
@@ -2811,19 +1815,13 @@ pushViewport(vplegC)
 grid.draw(legend)
 
 
-
-#### FIGURE 7b------------------------------------------
+#### FIGURE 7b (discarded, hard to read)------------------------------------------
 ## relative freq
-p<-reshape2::melt(Datasheet_sh.ind.full%>%
-                 select(-c("Latitude"))) %>%
-  group_by(variable,`Site Name`) %>%
-  summarise(Count = sum(value, na.rm = T)) %>%
+p<-dat%>%
   mutate(TotBins=TotBins$Freq
-         [match(`Site Name`,TotBins$Var1)])%>%
-  mutate(Freq=Count/TotBins)%>%
-  mutate (Country=Datasheet_sh.full$Country
-          [match(`Site Name`, Datasheet_sh.full$`Site Name`)])%>%
-  ggplot(aes(x=`Site Name`, y=Freq, fill= Country))+
+         [match(`Site Name`,TotBins$Var1)],
+         Freq=Count/TotBins)%>%
+  ggplot(aes(x=`Site Num`, y=Freq, fill= Country))+
  scale_x_discrete(label=function(x) abbreviate(x, 2))+
   scale_fill_manual(values = c("#BDBDBD","#636363","#F0F0F0"), guide=F)+
   geom_bar(stat = "identity",colour="black")+
@@ -2858,27 +1856,22 @@ grid.draw(legend)
 
 #### FIGURE 7b_Direct------------------------------------------
 ## relative freq
-p<-reshape2::melt(Datasheet_sh.ind.full%>%
-                     select(-c("Latitude"))) %>%
-   group_by(variable,`Site Name`) %>%
-   summarise(Count = sum(value, na.rm = T)) %>%
-   mutate(TotBins=TotBins$Freq
-          [match(`Site Name`,TotBins$Var1)])%>%
-   mutate(Freq=Count/TotBins)%>%
-   mutate (Country=Datasheet_sh.full$Country
-           [match(`Site Name`, Datasheet_sh.full$`Site Name`)],
-           Ind=Human_indicators$Indicator
-           [match(variable,Human_indicators$`Group (Taxa)`)])%>%
+p<-dat%>%
+  mutate(TotBins=TotBins$Freq
+         [match(`Site Name`,TotBins$Var1)],
+         Freq=Count/TotBins,
+         Ind=Human_indicators$Indicator
+         [match(variable,Human_indicators$`Group (Taxa)`)])%>%
    filter(Ind=="Direct") %>%
-   ggplot(aes(x=`Site Name`, y=Freq, fill= Country))+
-   scale_x_discrete(label=function(x) abbreviate(x, 2))+
+  ggplot(aes(x=`Site Num`, y=Freq, fill= Country))+
    scale_fill_manual(values = c("#BDBDBD","#636363","#F0F0F0"), guide=F)+
    geom_bar(stat = "identity",colour="black")+
    facet_wrap(~variable)+
    theme_bw()+
    theme(axis.text.x = element_text(angle = 60, hjust=1))+
-   ggtitle("Relative frequency of direct indicators",
-           subtitle = "For each site, percentage of bins where each indicator is found")
+  labs(x="Site",
+       y="Relative frequency")+
+   ggtitle("For each site, percentage of bins where  direct indicators are found")
 
 g_1 <- grid.force(ggplotGrob(p)) 
 
@@ -2886,9 +1879,9 @@ g_1 <- grid.force(ggplotGrob(p))
 
 # do the same as fig 6, with plot and table from fig 7 and legend from fig 2
 grid.newpage()
-vp1 <- viewport(width = 0.75, height = 1, x = 0.35, y = .5)
-vpleg <- viewport(width = 0.22, height = 1, x = 0.87, y = 0.5)
-vplegC <- viewport(width = 0.2, height = 0.2, x = 0.8, y = 0.95)
+vp1 <- viewport(width = 0.75, height = 0.8, x = 0.4, y = .6)
+vpleg <- viewport(width = 0.25, height = 1, x = 0.9, y = 0.6)
+vplegC <- viewport(width = 0.1, height = 0.1, x = 0.4, y = 0.1)
 
 upViewport(0)
 pushViewport(vp1)
@@ -2905,27 +1898,22 @@ grid.draw(legend)
 
 #### FIGURE 7b_Indirect------------------------------------------
 ## relative freq
-p<-reshape2::melt(Datasheet_sh.ind.full%>%
-                     select(-c("Latitude"))) %>%
-   group_by(variable,`Site Name`) %>%
-   summarise(Count = sum(value, na.rm = T)) %>%
-   mutate(TotBins=TotBins$Freq
-          [match(`Site Name`,TotBins$Var1)])%>%
-   mutate(Freq=Count/TotBins)%>%
-   mutate (Country=Datasheet_sh.full$Country
-           [match(`Site Name`, Datasheet_sh.full$`Site Name`)],
-           Ind=Human_indicators$Indicator
-           [match(variable,Human_indicators$`Group (Taxa)`)])%>%
+p<-dat%>%
+  mutate(TotBins=TotBins$Freq
+         [match(`Site Name`,TotBins$Var1)],
+         Freq=Count/TotBins,
+         Ind=Human_indicators$Indicator
+         [match(variable,Human_indicators$`Group (Taxa)`)])%>%
    filter(Ind=="Indirect") %>%
-   ggplot(aes(x=`Site Name`, y=Freq, fill= Country))+
-   scale_x_discrete(label=function(x) abbreviate(x, 2))+
+   ggplot(aes(x=`Site Num`, y=Freq, fill= Country))+
    scale_fill_manual(values = c("#BDBDBD","#636363","#F0F0F0"), guide=F)+
    geom_bar(stat = "identity",colour="black")+
    facet_wrap(~variable)+
    theme_bw()+
    theme(axis.text.x = element_text(angle = 60, hjust=1))+
-   ggtitle("Relative frequency of indirect indicators",
-           subtitle = "For each site, percentage of bins where each indicator is found")
+  labs(x="Site",
+       y="Relative frequency")+
+   ggtitle("For each site, percentage of bins where indirect indicators are found")
 
 g_1 <- grid.force(ggplotGrob(p)) 
 
@@ -2933,9 +1921,9 @@ g_1 <- grid.force(ggplotGrob(p))
 
 # do the same as fig 6, with plot and table from fig 7 and legend from fig 2
 grid.newpage()
-vp1 <- viewport(width = 0.75, height = 1, x = 0.35, y = .5)
-vpleg <- viewport(width = 0.22, height = 1, x = 0.87, y = 0.5)
-vplegC <- viewport(width = 0.2, height = 0.2, x = 0.8, y = 0.95)
+vp1 <- viewport(width = 0.75, height = 0.8, x = 0.4, y = .6)
+vpleg <- viewport(width = 0.25, height = 1, x = 0.9, y = 0.6)
+vplegC <- viewport(width = 0.1, height = 0.1, x = 0.4, y = 0.1)
 
 upViewport(0)
 pushViewport(vp1)
@@ -2952,27 +1940,24 @@ grid.draw(legend)
 
 #### FIGURE 7b_H/L------------------------------------------
 ## relative freq
-p<-reshape2::melt(Datasheet_sh.ind.full%>%
-                     select(-c("Latitude"))) %>%
-   group_by(variable,`Site Name`) %>%
-   summarise(Count = sum(value, na.rm = T)) %>%
-   mutate(TotBins=TotBins$Freq
-          [match(`Site Name`,TotBins$Var1)],
-          Freq=Count/TotBins,
-          Country=Datasheet_sh.full$Country
-                                      [match(`Site Name`, Datasheet_sh.full$`Site Name`)],
+p<-dat%>%
+  mutate(TotBins=TotBins$Freq
+         [match(`Site Name`,TotBins$Var1)],
+         Freq=Count/TotBins,
+         Ind=Human_indicators$Indicator
+         [match(variable,Human_indicators$`Group (Taxa)`)],
           Pot=Human_indicators$`Potential food source`
-                                      [match(variable,Human_indicators$`Group (Taxa)`)])%>%
+          [match(variable,Human_indicators$`Group (Taxa)`)])%>%
    filter(Pot %in% c("high", "low")) %>%
-   ggplot(aes(x=`Site Name`, y=Freq, fill= Country))+
-   scale_x_discrete(label=function(x) abbreviate(x, 2))+
+   ggplot(aes(x=`Site Num`, y=Freq, fill= Country))+
    scale_fill_manual(values = c("#BDBDBD","#636363","#F0F0F0"), guide=F)+
    geom_bar(stat = "identity",colour="black")+
    facet_wrap(~variable, ncol=2)+
    theme_bw()+
    theme(axis.text.x = element_text(angle = 60, hjust=1))+
-   ggtitle("Relative frequency of indicators with food potential",
-           subtitle = "For each site, percentage of bins where each indicator is found")
+  labs(x="Site",
+       y="Relative frequency")+
+   ggtitle("For each site, percentage of bins where indicators with food potential are found")
 
 g_1 <- grid.force(ggplotGrob(p)) 
 
@@ -3005,12 +1990,12 @@ for (i in 1:length(strip_bg_gpath)){
 
 
 
-#do the same as fig 6, with plot and table from fig 7 and legend for countries from fig 2, legend for indicators from fig 10d
+#do the same as fig 6, with plot and table from fig 7 and legend for countries from fig 2, legend for indicators from fig 13b_Col
 grid.newpage()
-vp1 <- viewport(width = 0.75, height = 1, x = 0.35, y = .5)
-vpleg <- viewport(width = 0.22, height = 1, x = 0.87, y = 0.5)
-vplegC <- viewport(width = 0.1, height = 0.2, x = 0.8, y = 0.9)
-vplegI<- viewport(width = 0.1, height = 0.2, x = 0.9, y = 0.9)
+vp1 <- viewport(width = 0.75, height = 0.8, x = 0.4, y = .6)
+vpleg <- viewport(width = 0.25, height = 1, x = 0.9, y = 0.6)
+vplegC <- viewport(width = 0.1, height = 0.1, x = 0.4, y = 0.1)
+vplegI<- viewport(width = 0.1, height = 0.1, x = 0.5, y = 0.1)
 
 upViewport(0)
 pushViewport(vp1)
@@ -3027,31 +2012,28 @@ grid.draw(legend)
 
 upViewport(0)
 pushViewport(vplegI)
-grid.draw(legend_di)
+grid.draw(legend_hl)
 
 #### FIGURE 7b_no------------------------------------------
 ## relative freq
-p<-reshape2::melt(Datasheet_sh.ind.full%>%
-                     select(-c("Latitude"))) %>%
-   group_by(variable,`Site Name`) %>%
-   summarise(Count = sum(value, na.rm = T)) %>%
-   mutate(TotBins=TotBins$Freq
-          [match(`Site Name`,TotBins$Var1)],
-          Freq=Count/TotBins,
-          Country=Datasheet_sh.full$Country
-                   [match(`Site Name`, Datasheet_sh.full$`Site Name`)],
-          Pot=Human_indicators$`Potential food source`
-                   [match(variable,Human_indicators$`Group (Taxa)`)])%>%
-              filter(Pot=="no") %>%
-   ggplot(aes(x=`Site Name`, y=Freq, fill= Country))+
-   scale_x_discrete(label=function(x) abbreviate(x, 2))+
+p<-dat%>%
+  mutate(TotBins=TotBins$Freq
+         [match(`Site Name`,TotBins$Var1)],
+         Freq=Count/TotBins,
+         Ind=Human_indicators$Indicator
+         [match(variable,Human_indicators$`Group (Taxa)`)],
+         Pot=Human_indicators$`Potential food source`
+         [match(variable,Human_indicators$`Group (Taxa)`)])%>%
+  filter(Pot=="no") %>%
+   ggplot(aes(x=`Site Num`, y=Freq, fill= Country))+
    scale_fill_manual(values = c("#BDBDBD","#636363","#F0F0F0"), guide=F)+
    geom_bar(stat = "identity",colour="black")+
    facet_wrap(~variable)+
    theme_bw()+
    theme(axis.text.x = element_text(angle = 60, hjust=1))+
-   ggtitle("Relative frequency of indicators with no food potential",
-           subtitle = "For each site, percentage of bins where each indicator is found")
+  labs(x="Site",
+       y="Relative frequency")+
+   ggtitle("For each site, percentage of bins where indicators with no food potential are found")
 
 g_1 <- grid.force(ggplotGrob(p)) 
 
@@ -3059,9 +2041,10 @@ g_1 <- grid.force(ggplotGrob(p))
 
 # do the same as fig 6, with plot and table from fig 7 and legend from fig 2
 grid.newpage()
-vp1 <- viewport(width = 0.75, height = 1, x = 0.35, y = .5)
-vpleg <- viewport(width = 0.22, height = 1, x = 0.87, y = 0.5)
-vplegC <- viewport(width = 0.2, height = 0.2, x = 0.8, y = 0.95)
+vp1 <- viewport(width = 0.75, height = 0.8, x = 0.4, y = .6)
+vpleg <- viewport(width = 0.25, height = 1, x = 0.9, y = 0.6)
+vplegC <- viewport(width = 0.1, height = 0.1, x = 0.4, y = 0.1)
+
 
 upViewport(0)
 pushViewport(vp1)
@@ -3136,61 +2119,18 @@ Datasheet_sh.pot.full<- bind_cols(Datasheet_shaved,
                                   DF_sh.No.Sum,
                                   Datasheet_sh.full%>%
                                     select(ForLabs))
+#add altitude to site name
+Datasheet_sh.pot.full$`Site Name`<-paste(Datasheet_sh.pot.full$`Site Name`,
+                                         "(",
+                                         Datasheet_sh.pot.full$Altitude,
+                                         "masl",
+                                         ")")
 
 # order sites by lat
 Datasheet_sh.pot.full$`Site Name`<-factor(Datasheet_sh.pot.full$`Site Name`)
 Datasheet_sh.pot.full$`Site Name`<-fct_reorder(Datasheet_sh.pot.full$`Site Name`,
-                                           -Datasheet_sh.full$Latitude)                        
+                                           -Datasheet_sh.full$Latitude)    
 
-#### FIGURE 8-------------------------------------------
-##Absolute frequency of direct indicators through time per site 
-
-p<-Datasheet_sh.full %>% 
-  ggplot(aes(x=reorder(Bin_num,-Bin_num), y=Sum_direct)) +  
-  geom_bar(stat = "identity",width = 0.5) +
-  facet_wrap(~`Site Name`) +
-  theme_bw() +
-  theme(axis.text.x = element_text(angle = 60, hjust=1)) +
-  geom_text(aes(label= ifelse(ForLabs=="H","H",Sum_direct)), vjust=-0.3, size=3) +
-  ylab("Absolute frequency")+
-  xlab("Time bins")+
-  ggtitle("Absolute frequency of direct indicators through time per site")
-
-g_1 <- grid.force(ggplotGrob(p))   #df to see the right path of text title
-grobs_df <- do.call(cbind.data.frame, grid.ls(g_1, print = FALSE)) 
-grobs_df$gPath_full <- paste(grobs_df$gPath, grobs_df$name, sep = "::") # Build optimal gPaths that will be later used to identify grobs and edit them
-grobs_df$gPath_full <- gsub(pattern = "layout::", 
-                            replacement = "", 
-                            x = grobs_df$gPath_full, 
-                            fixed = TRUE)
-
-strip_bg_gpath <- grobs_df$gPath_full[grepl(pattern = ".*strip\\.background.*", # Get the gPaths of the strip background grob
-                                            x = grobs_df$gPath_full)]
-strip_txt_gpath <- grobs_df$gPath_full[grepl(pattern = "strip.*titleGrob.*text.*", # Get the gPaths of the strip titles
-                                             x = grobs_df$gPath_full)]
-
-fills <-  c(rep("#636363",17), # vector of colors to fill rectangles
-            rep("#BDBDBD",2),
-            rep("#636363",5),
-            rep( "#BDBDBD",7),
-            rep( "#F0F0F0",2),
-            rep( "#BDBDBD",5)) 
-
-txt_colors <- c(rep("white",17), # vector of colors for text
-                rep("black",2),
-                rep("white",5),
-                rep( "black",7),
-                rep( "black",2),
-                rep( "black",5))
-
-for (i in 1:length(strip_bg_gpath)){
-  g_1 <- editGrob(grob = g_1, gPath = strip_bg_gpath[i], gp = gpar(fill = fills[i]))
-  g_1 <- editGrob(grob = g_1, gPath = strip_txt_gpath[i], gp = gpar(col = txt_colors[i]))
-} # Edit the grobs
-
-
-# add legend(extracted from FIG.2)
-plot_grid( g_1, legend, ncol = 2, rel_widths  = c(1, .2))
 
 
 #### FIGURE 8b---------------------------------------------------------
@@ -3199,11 +2139,11 @@ p<-Datasheet_sh.full %>%
   ggplot(aes(x=reorder(Bin_num,-Bin_num), y=Sum_direct)) +  
   geom_bar(stat = "identity",width = 0.7) +
   geom_point(aes(x=reorder(Bin_num,-Bin_num),y=4),
-             col="orange", pch=25 ,bg="orange", cex=0.7)+
+             col=ifelse(Datasheet_sh.full$ForLabs=="H","orange","black"), pch=25 ,
+             bg=ifelse(Datasheet_sh.full$ForLabs=="H","orange","black"), cex=0.7)+
   facet_wrap(~`Site Name`)+
   theme_bw() +
   theme(axis.text.x = element_text(angle = 60, hjust=1)) +
-  geom_text(aes(label= ifelse(ForLabs=="H","H","")), vjust=-0.3, size=3) +
   ylab("Absolute frequency")+
   xlab("Time bins")+
   ggtitle("Absolute frequency of direct indicators through time per site")
@@ -3240,103 +2180,35 @@ for (i in 1:length(strip_bg_gpath)){
   g_1 <- editGrob(grob = g_1, gPath = strip_txt_gpath[i], gp = gpar(col = txt_colors[i]))
 } # Edit the grobs
 
+#create plot to extract legend
+df.random<-data.frame(Lenght=c("Hiatus","Record"), 
+                      x=c(1,2),
+                      y=2)
+random<-ggplot(df.random)+
+  geom_point(aes(x=x,y=y,col=Lenght), pch=25,cex=0.7 )+
+  scale_color_manual(values = c("orange", "black"))
+                     
+# extract legend from plot
+legend_l<-get_legend(random)
 
-# add legend(extracted from FIG.2)
-plot_grid( g_1, legend, ncol = 2, rel_widths  = c(1, .2))
+# add legend(extracted from FIG.2 and from previous plot)
+grid.newpage()
+vp1 <- viewport(width = 0.75, height = 0.8, x = 0.4, y = .5)
+vplegC <- viewport(width = 0.25, height = 1, x = 0.9, y = 0.6)
+vplegL<- viewport(width = 0.25, height = 1, x = 0.9, y = 0.5)
 
 
-#### FIGURE 8b_Col (do not do)------------------------------------
-Datasheet_sh.full %>%
-  filter(Country=="Colombia")%>%
-  ggplot(aes(x=reorder(Bin_num,-Bin_num), y=Sum_direct)) +  
-  geom_bar(stat = "identity",width = 0.7) +
-  geom_point(aes(x=reorder(Bin_num,-Bin_num),y=4),
-             col="orange", pch=25 ,bg="orange", cex=0.7)+
-  facet_wrap(~`Site Name`)+
-  theme_bw() +
-  theme(axis.text.x = element_text(angle = 60, hjust=1)) +
-  geom_text(aes(label= ifelse(ForLabs=="H","H","")), vjust=-0.3, size=3) +
-  ylab("Absolute frequency")+
-  xlab("Time bins")+
-  ggtitle("Absolute frequency of direct indicators through time per site")
+upViewport(0)
+pushViewport(vp1)
+grid.draw(g_1)
 
-#### FIGURE 8b_Ven (do not do)------------------------------------
-Datasheet_sh.full %>%
-  filter(Country=="Venezuela")%>%
-  ggplot(aes(x=reorder(Bin_num,-Bin_num), y=Sum_direct)) +  
-  geom_bar(stat = "identity",width = 0.7) +
-  geom_point(aes(x=reorder(Bin_num,-Bin_num),y=4),
-             col="orange", pch=25 ,bg="orange", cex=0.7)+
-  facet_wrap(~`Site Name`)+
-  theme_bw() +
-  theme(axis.text.x = element_text(angle = 90, hjust=1)) +
-  geom_text(aes(label= ifelse(ForLabs=="H","H","")), vjust=-0.3, size=3) +
-  ylab("Absolute frequency")+
-  xlab("Time bins")+
-  ggtitle("Absolute frequency of direct indicators through time per site")
+upViewport(0)
+pushViewport(vplegC)
+grid.draw(legend)
 
-#### FIGURE 8b_Ec (do not do)------------------------------------
-Datasheet_sh.full %>%
-  filter(Country=="Ecuador")%>%
-  ggplot(aes(x=reorder(Bin_num,-Bin_num), y=Sum_direct)) +  
-  geom_bar(stat = "identity",width = 0.7) +
-  geom_point(aes(x=reorder(Bin_num,-Bin_num),y=4),
-             col="orange", pch=25 ,bg="orange", cex=0.7)+
-  facet_wrap(~`Site Name`)+
-  theme_bw() +
-  theme(axis.text.x = element_text(angle = 90, hjust=1)) +
-  geom_text(aes(label= ifelse(ForLabs=="H","H","")), vjust=-0.3, size=3) +
-  ylab("Absolute frequency")+
-  xlab("Time bins")+
-  ggtitle("Absolute frequency of direct indicators through time per site")
-#### FIGURE 9----------------------------------------
-## Absolute frequency of indirect indicators through time per site
-
-p<-Datasheet_sh.full %>% 
-  ggplot(aes(x=reorder(Bin_num,-Bin_num), y=Sum_indirect)) +  
-  geom_bar(stat = "identity",width = 0.5) +
-  facet_wrap(~`Site Name`) +
-  theme_bw() +
-  theme(axis.text.x = element_text(angle = 60, hjust=1)) +
-  geom_text(aes(label= ifelse(ForLabs=="H","H",Sum_indirect)), vjust=-0.3, size=3) +
-  ylab("Absolute frequency")+
-  xlab("Time bins")+
-  ggtitle("Absolute frequency of indirect indicators through time per site")
-
-g_1 <- grid.force(ggplotGrob(p))   #df to see the right path of text title
-grobs_df <- do.call(cbind.data.frame, grid.ls(g_1, print = FALSE)) 
-grobs_df$gPath_full <- paste(grobs_df$gPath, grobs_df$name, sep = "::") # Build optimal gPaths that will be later used to identify grobs and edit them
-grobs_df$gPath_full <- gsub(pattern = "layout::", 
-                            replacement = "", 
-                            x = grobs_df$gPath_full, 
-                            fixed = TRUE)
-
-strip_bg_gpath <- grobs_df$gPath_full[grepl(pattern = ".*strip\\.background.*", # Get the gPaths of the strip background grob
-                                            x = grobs_df$gPath_full)]
-strip_txt_gpath <- grobs_df$gPath_full[grepl(pattern = "strip.*titleGrob.*text.*", # Get the gPaths of the strip titles
-                                             x = grobs_df$gPath_full)]
-
-fills <-  c(rep("#636363",17), # vector of colors to fill rectangles
-            rep("#BDBDBD",2),
-            rep("#636363",5),
-            rep( "#BDBDBD",7),
-            rep( "#F0F0F0",2),
-            rep( "#BDBDBD",5)) 
-
-txt_colors <- c(rep("white",17), # vector of colors for text
-                rep("black",2),
-                rep("white",5),
-                rep( "black",7),
-                rep( "black",2),
-                rep( "black",5))
-
-for (i in 1:length(strip_bg_gpath)){
-  g_1 <- editGrob(grob = g_1, gPath = strip_bg_gpath[i], gp = gpar(fill = fills[i]))
-  g_1 <- editGrob(grob = g_1, gPath = strip_txt_gpath[i], gp = gpar(col = txt_colors[i]))
-} # Edit the grobs
-
-# add legend(extracted from FIG.2)
-plot_grid( g_1, legend, ncol = 2, rel_widths  = c(1, .2))
+upViewport(0)
+pushViewport(vplegL)
+grid.draw(legend_l)
 
 #### FIGURE 9b---------------------------------------------------------
 ##same, without numbers and with time span of the records
@@ -3344,11 +2216,11 @@ p<-Datasheet_sh.full %>%
   ggplot(aes(x=reorder(Bin_num,-Bin_num), y=Sum_indirect)) +  
   geom_bar(stat = "identity",width = 0.7) +
   geom_point(aes(x=reorder(Bin_num,-Bin_num),y=22),
-             col="orange", pch=25 ,bg="orange", cex=0.7)+
+             col=ifelse(Datasheet_sh.full$ForLabs=="H","orange","black"), pch=25 ,
+             bg=ifelse(Datasheet_sh.full$ForLabs=="H","orange","black"), cex=0.7)+
   facet_wrap(~`Site Name`)+
   theme_bw() +
   theme(axis.text.x = element_text(angle = 60, hjust=1)) +
-  geom_text(aes(label= ifelse(ForLabs=="H","H","")), vjust=-0.3, size=3) +
   ylab("Absolute frequency")+
   xlab("Time bins")+
   ggtitle("Absolute frequency of indirect indicators through time per site")
@@ -3385,55 +2257,25 @@ for (i in 1:length(strip_bg_gpath)){
   g_1 <- editGrob(grob = g_1, gPath = strip_txt_gpath[i], gp = gpar(col = txt_colors[i]))
 } # Edit the grobs
 
-# add legend(extracted from FIG.2)
-plot_grid( g_1, legend, ncol = 2, rel_widths  = c(1, .2))
+# add legend(extracted from FIG.2 and 8b)
+grid.newpage()
+vp1 <- viewport(width = 0.75, height = 0.8, x = 0.4, y = .5)
+vplegC <- viewport(width = 0.25, height = 1, x = 0.9, y = 0.6)
+vplegL<- viewport(width = 0.25, height = 1, x = 0.9, y = 0.5)
 
 
-#### FIGURE 9b_Col (do not do)----------------------------
-Datasheet_sh.full %>% 
-  filter(Country=="Colombia")%>%
-  ggplot(aes(x=reorder(Bin_num,-Bin_num), y=Sum_indirect)) +  
-  geom_bar(stat = "identity",width = 0.7) +
-  geom_point(aes(x=reorder(Bin_num,-Bin_num),y=22),
-             col="orange", pch=25 ,bg="orange", cex=0.7)+
-  facet_wrap(~`Site Name`)+
-  theme_bw() +
-  theme(axis.text.x = element_text(angle = 90, hjust=1)) +
-  geom_text(aes(label= ifelse(ForLabs=="H","H","")), vjust=-0.3, size=3) +
-  ylab("Absolute frequency")+
-  xlab("Time bins")+
-  ggtitle("Absolute frequency of indirect indicators through time per site, Colombia")
-  
-  #### FIGURE 9b_Ven (do not do)----------------------------
-  Datasheet_sh.full %>% 
-    filter(Country=="Venezuela")%>%
-  ggplot(aes(x=reorder(Bin_num,-Bin_num), y=Sum_indirect)) +  
-    geom_bar(stat = "identity",width = 0.7) +
-    geom_point(aes(x=reorder(Bin_num,-Bin_num),y=22),
-               col="orange", pch=25 ,bg="orange", cex=0.7)+
-    facet_wrap(~`Site Name`)+
-    theme_bw() +
-    theme(axis.text.x = element_text(angle = 90, hjust=1)) +
-    geom_text(aes(label= ifelse(ForLabs=="H","H","")), vjust=-0.3, size=3) +
-    ylab("Absolute frequency")+
-    xlab("Time bins")+
-    ggtitle("Absolute frequency of indirect indicators through time per site, Venezuela")
+upViewport(0)
+pushViewport(vp1)
+grid.draw(g_1)
 
-  #### FIGURE 9b_Ec(do not do)----------------------------
-  Datasheet_sh.full %>% 
-    filter(Country=="Ecuador")%>%
-  ggplot(aes(x=reorder(Bin_num,-Bin_num), y=Sum_indirect)) +  
-    geom_bar(stat = "identity",width = 0.7) +
-    geom_point(aes(x=reorder(Bin_num,-Bin_num),y=22),
-               col="orange", pch=25 ,bg="orange", cex=0.7)+
-    facet_wrap(~`Site Name`)+
-    theme_bw() +
-    theme(axis.text.x = element_text(angle = 90, hjust=1)) +
-    geom_text(aes(label= ifelse(ForLabs=="H","H","")), vjust=-0.3, size=3) +
-    ylab("Absolute frequency")+
-    xlab("Time bins")+
-    ggtitle("Absolute frequency of indirect indicators through time per site, Ecuador")
-  
+upViewport(0)
+pushViewport(vplegC)
+grid.draw(legend)
+
+upViewport(0)
+pushViewport(vplegL)
+grid.draw(legend_l)
+
 
 #### FIGURE 10 ----------------------------------
 #Absolute frequency of high food pot indicators through time per site
@@ -3441,11 +2283,11 @@ p<-Datasheet_sh.pot.full %>%
   ggplot(aes(x=reorder(Bin_num,-Bin_num), y=Sum_high)) +  
   geom_bar(stat = "identity",width = 0.7) +
   geom_point(aes(x=reorder(Bin_num,-Bin_num),y=22),
-             col="orange", pch=25 ,bg="orange", cex=0.7)+
+             col=ifelse(Datasheet_sh.full$ForLabs=="H","orange","black"), pch=25 ,
+             bg=ifelse(Datasheet_sh.full$ForLabs=="H","orange","black"), cex=0.7)+
   facet_wrap(~`Site Name`)+
   theme_bw() +
   theme(axis.text.x = element_text(angle = 60, hjust=1)) +
-  geom_text(aes(label= ifelse(ForLabs=="H","H","")), vjust=-0.3, size=3) +
   ylab("Absolute frequency")+
   xlab("Time bins")+
   ggtitle("Absolute frequency of indicators with high food potential through time per site")
@@ -3482,56 +2324,23 @@ for (i in 1:length(strip_bg_gpath)){
   g_1 <- editGrob(grob = g_1, gPath = strip_txt_gpath[i], gp = gpar(col = txt_colors[i]))
 } # Edit the grobs
 
-# add legend(extracted from FIG.2)
-plot_grid( g_1, legend, ncol = 2, rel_widths  = c(1, .2))
+# add legend(extracted from FIG.2 and 8b)
+grid.newpage()
+vp1 <- viewport(width = 0.75, height = 0.8, x = 0.4, y = .5)
+vplegC <- viewport(width = 0.25, height = 1, x = 0.9, y = 0.6)
+vplegL<- viewport(width = 0.25, height = 1, x = 0.9, y = 0.5)
 
-####FIGURE 10_Col(do not do)------------------------------
+upViewport(0)
+pushViewport(vp1)
+grid.draw(g_1)
 
-Datasheet_sh.pot.full %>% 
-  filter(Country=="Colombia")%>%
-  ggplot(aes(x=reorder(Bin_num,-Bin_num), y=Sum_high)) +  
-  geom_bar(stat = "identity",width = 0.7) +
-  geom_point(aes(x=reorder(Bin_num,-Bin_num),y=22),
-             col="orange", pch=25 ,bg="orange", cex=0.7)+
-  facet_wrap(~`Site Name`)+
-  theme_bw() +
-  theme(axis.text.x = element_text(angle = 90, hjust=1)) +
-  geom_text(aes(label= ifelse(ForLabs=="H","H","")), vjust=-0.3, size=3) +
-  ylab("Absolute frequency")+
-  xlab("Time bins")+
-  ggtitle("Absolute frequency of indicators with high food potential through time per site, Colombia")
+upViewport(0)
+pushViewport(vplegC)
+grid.draw(legend)
 
-####FIGURE 10_Ven (do not do)------------------------------
-
-Datasheet_sh.pot.full %>% 
-  filter(Country=="Venezuela")%>%
-  ggplot(aes(x=reorder(Bin_num,-Bin_num), y=Sum_high)) +  
-  geom_bar(stat = "identity",width = 0.7) +
-  geom_point(aes(x=reorder(Bin_num,-Bin_num),y=22),
-             col="orange", pch=25 ,bg="orange", cex=0.7)+
-  facet_wrap(~`Site Name`)+
-  theme_bw() +
-  theme(axis.text.x = element_text(angle = 90, hjust=1)) +
-  geom_text(aes(label= ifelse(ForLabs=="H","H","")), vjust=-0.3, size=3) +
-  ylab("Absolute frequency")+
-  xlab("Time bins")+
-  ggtitle("Absolute frequency of indicators with high food potential through time per site, Venezuela")
-
-####FIGURE 10_Ec (do not do)------------------------------
-
-Datasheet_sh.pot.full %>% 
-  filter(Country=="Ecuador")%>%
-  ggplot(aes(x=reorder(Bin_num,-Bin_num), y=Sum_high)) +  
-  geom_bar(stat = "identity",width = 0.7) +
-  geom_point(aes(x=reorder(Bin_num,-Bin_num),y=22),
-             col="orange", pch=25 ,bg="orange", cex=0.7)+
-  facet_wrap(~`Site Name`)+
-  theme_bw() +
-  theme(axis.text.x = element_text(angle = 90, hjust=1)) +
-  geom_text(aes(label= ifelse(ForLabs=="H","H","")), vjust=-0.3, size=3) +
-  ylab("Absolute frequency")+
-  xlab("Time bins")+
-  ggtitle("Absolute frequency of indicators with high food potential through time per site, Ecuador")
+upViewport(0)
+pushViewport(vplegL)
+grid.draw(legend_l)
 
 #### FIGURE 11---------------------------------------
 #Absolute frequency of low food pot indicators through time per site
@@ -3540,11 +2349,11 @@ p<-Datasheet_sh.pot.full %>%
   ggplot(aes(x=reorder(Bin_num,-Bin_num), y=Sum_low)) +  
   geom_bar(stat = "identity",width = 0.7) +
   geom_point(aes(x=reorder(Bin_num,-Bin_num),y=22),
-             col="orange", pch=25 ,bg="orange", cex=0.7)+
+             col=ifelse(Datasheet_sh.full$ForLabs=="H","orange","black"), pch=25 ,
+             bg=ifelse(Datasheet_sh.full$ForLabs=="H","orange","black"), cex=0.7)+
   facet_wrap(~`Site Name`)+
   theme_bw() +
   theme(axis.text.x = element_text(angle = 60, hjust=1)) +
-  geom_text(aes(label= ifelse(ForLabs=="H","H","")), vjust=-0.3, size=3) +
   ylab("Absolute frequency")+
   xlab("Time bins")+
   ggtitle("Absolute frequency of indicators with low food potential through time per site")
@@ -3581,71 +2390,45 @@ for (i in 1:length(strip_bg_gpath)){
   g_1 <- editGrob(grob = g_1, gPath = strip_txt_gpath[i], gp = gpar(col = txt_colors[i]))
 } # Edit the grobs
 
-# add legend(extracted from FIG.2)
-plot_grid( g_1, legend, ncol = 2, rel_widths  = c(1, .2))
+# add legend(extracted from FIG.2 and  8b)
+grid.newpage()
+vp1 <- viewport(width = 0.75, height = 0.8, x = 0.4, y = .5)
+vplegC <- viewport(width = 0.25, height = 1, x = 0.9, y = 0.6)
+vplegL<- viewport(width = 0.25, height = 1, x = 0.9, y = 0.5)
 
-#### FIGURE 11_Col (do not do)---------------------------------
+upViewport(0)
+pushViewport(vp1)
+grid.draw(g_1)
 
-Datasheet_sh.pot.full %>% 
-  filter(Country=="Colombia")%>%
-  ggplot(aes(x=reorder(Bin_num,-Bin_num), y=Sum_low)) +  
-  geom_bar(stat = "identity",width = 0.7) +
-  geom_point(aes(x=reorder(Bin_num,-Bin_num),y=22),
-             col="orange", pch=25 ,bg="orange", cex=0.7)+
-  facet_wrap(~`Site Name`)+
-  theme_bw() +
-  theme(axis.text.x = element_text(angle = 90, hjust=1)) +
-  geom_text(aes(label= ifelse(ForLabs=="H","H","")), vjust=-0.3, size=3) +
-  ylab("Absolute frequency")+
-  xlab("Time bins")+
-  ggtitle("Absolute frequency of indicators with low food potential through time per site, Colombia")
+upViewport(0)
+pushViewport(vplegC)
+grid.draw(legend)
 
-  #### FIGURE 11_vEN (do not do)---------------------------------
-  
-  Datasheet_sh.pot.full %>% 
-    filter(Country=="Venezuela")%>%
-  ggplot(aes(x=reorder(Bin_num,-Bin_num), y=Sum_low)) +  
-    geom_bar(stat = "identity",width = 0.7) +
-    geom_point(aes(x=reorder(Bin_num,-Bin_num),y=22),
-               col="orange", pch=25 ,bg="orange", cex=0.7)+
-    facet_wrap(~`Site Name`)+
-    theme_bw() +
-    theme(axis.text.x = element_text(angle = 90, hjust=1)) +
-    geom_text(aes(label= ifelse(ForLabs=="H","H","")), vjust=-0.3, size=3) +
-    ylab("Absolute frequency")+
-    xlab("Time bins")+
-    ggtitle("Absolute frequency of indicators with low food potential through time per site, Venezuela")  
+upViewport(0)
+pushViewport(vplegL)
+grid.draw(legend_l)
 
-#### FIGURE 11_Ec (do not do)---------------------------------
-  
-  Datasheet_sh.pot.full %>% 
-    filter(Country=="Ecuador")%>%
-  ggplot(aes(x=reorder(Bin_num,-Bin_num), y=Sum_low)) +  
-    geom_bar(stat = "identity",width = 0.7) +
-    geom_point(aes(x=reorder(Bin_num,-Bin_num),y=22),
-               col="orange", pch=25 ,bg="orange", cex=0.7)+
-    facet_wrap(~`Site Name`)+
-    theme_bw() +
-    theme(axis.text.x = element_text(angle = 90, hjust=1)) +
-    geom_text(aes(label= ifelse(ForLabs=="H","H","")), vjust=-0.3, size=3) +
-    ylab("Absolute frequency")+
-    xlab("Time bins")+
-    ggtitle("Absolute frequency of indicators with low food potential through time per site, Ecuador")
-  
-  #### FIGURE 12-------------------------------------
-## to have a single chart for direct and indirect indicators
-DF_sh.Direct.Sum<-DF_sh.Direct.Sum%>%
+# FIGURE 13-------------------------------------------------
+# new df
+DF_sh.Direct.Sum1<-DF_sh.Direct.Sum%>%
   mutate(IND=rep("Direct"))
 
-DF_sh.Indirect.Sum <- DF_sh.Indirect.Sum %>% 
+DF_sh.Indirect.Sum1 <- DF_sh.Indirect.Sum %>% 
   mutate(IND=rep("Indirect"))
 
 Datasheet_sh.full.long<-rbind(bind_cols(Datasheet_shaved,
-                                        DF_sh.Indirect.Sum,
+                                        DF_sh.Indirect.Sum1,
                                         Datasheet_sh.full%>% select(ForLabs)),
                               bind_cols(Datasheet_shaved,
-                                        DF_sh.Direct.Sum,
+                                        DF_sh.Direct.Sum1,
                                         Datasheet_sh.full%>% select(ForLabs)))
+
+#add altitude to site name
+Datasheet_sh.full.long$`Site Name`<-paste(Datasheet_sh.full.long$`Site Name`,
+                                         "(",
+                                         Datasheet_sh.full.long$Altitude,
+                                         "masl",
+                                         ")")
 
 # sites ordered according to lat, to sort facets in plot
 Datasheet_sh.full.long$`Site Name`<-factor(Datasheet_sh.full.long$`Site Name`)
@@ -3657,35 +2440,21 @@ Datasheet_sh.full.long$IND<-factor(Datasheet_sh.full.long$IND,
                                    levels = c("Indirect","Direct"))
 
 
-#direct and indirect side by side (confusing, do not use)
-ggplot(data=Datasheet_sh.full.long, 
-       aes(x = reorder(Bin_num,-Bin_num),y=SUM,fill=IND))+
-  geom_bar(position="dodge",stat = "identity",width = 0.5)+
-  scale_fill_manual(values = c("#00BFC4", "#F8766D"))+
-  facet_wrap(~`Site Name`)+
-  theme_bw()+
-  theme(axis.text.x = element_text(angle = 60, hjust=1))+
-  geom_text(aes(label=SUM), vjust=-0.3, size=3)+
-  ylab("Absolute frequency")+
-  xlab("Time bins")+
-  labs(fill="Indicator")+
-  ggtitle("Absolute frequency of indicators through time")
-
-# FIGURE 13-------------------------------------------------
 #stacked bar chart, filled bars (easier to read)
 p<-ggplot(data=Datasheet_sh.full.long, 
           aes(x = reorder(Bin_num,-Bin_num),y=SUM,fill=IND))+
   geom_bar(stat = "identity",width = 1)+
   scale_fill_manual(values = c("#00BFC4", "#F8766D"),guide=F)+
+  geom_point(aes(x=reorder(Bin_num,-Bin_num),y=25),
+             col=ifelse(Datasheet_sh.full.long$ForLabs=="H","orange","black"), pch=25 ,
+             bg=ifelse(Datasheet_sh.full.long$ForLabs=="H","orange","black"), cex=0.7)+
   facet_wrap(~`Site Name`)+
   theme_bw()+
   theme(axis.text.x = element_text(angle = 60, hjust=1))+
-  geom_text(aes(label= ifelse(ForLabs=="H","H","")), vjust=-0.3, size=3) +
   ylab("Absolute frequency")+
   xlab("Time bins")+
   labs(fill="Indicator")+
-  ggtitle("Absolute frequency of indicators through time",
-          subtitle = "Number of direct/indirect indicators")
+  ggtitle("Cumulated number of direct and indirect indicators per bin, per site")
 
 g_1 <- grid.force(ggplotGrob(p))   #df to see the right path of text title
 grobs_df <- do.call(cbind.data.frame, grid.ls(g_1, print = FALSE)) 
@@ -3719,40 +2488,85 @@ for (i in 1:length(strip_bg_gpath)){
   g_1 <- editGrob(grob = g_1, gPath = strip_txt_gpath[i], gp = gpar(col = txt_colors[i]))
 } # Edit the grobs
 
-# extract legend from plot
-legend_di<-get_legend(g_1)
+# add legend(extracted from FIG.2 5b_Col and  8b)
+grid.newpage()
+vp1 <- viewport(width = 0.75, height = 0.8, x = 0.4, y = .5)
+vplegC <- viewport(width = 0.25, height = 1, x = 0.9, y = 0.6)
+vplegL<- viewport(width = 0.25, height = 1, x = 0.9, y = 0.4)
+vplegI<- viewport(width = 0.25, height = 1, x = 0.9, y = 0.5)
 
-# add scale_fill_dscete( scale= F) to original plot p
+upViewport(0)
+pushViewport(vp1)
+grid.draw(g_1)
 
-# add legend extracted from FIG.2, legend from this plot 
-plot_grid( g_1, plot_grid(legend_di,legend, ncol=1, nrow = 5, align='v'),
-           ncol = 2, rel_widths  = c(1, .2))
+upViewport(0)
+pushViewport(vplegC)
+grid.draw(legend)
+
+upViewport(0)
+pushViewport(vplegL)
+grid.draw(legend_l)
+
+upViewport(0)
+pushViewport(vplegI)
+grid.draw(legend_di)
 
 #### FIGURE 13_Col-----------------------------------------
 
-ggplot(data=Datasheet_sh.full.long%>%
+p<-ggplot(data=Datasheet_sh.full.long%>%
          filter(Country=="Colombia"), 
        aes(x = reorder(Bin_num,-Bin_num),y=SUM,fill=IND))+
   geom_bar(stat = "identity",width = 1)+
-  scale_fill_manual(values = c("#00BFC4", "#F8766D"))+
+  scale_fill_manual(values = c("#00BFC4", "#F8766D"), guide=F)+
+  geom_point(aes(x=reorder(Bin_num,-Bin_num),y=25),
+             col=ifelse(Datasheet_sh.full.long%>%
+                          filter(Country=="Colombia")%>%
+                          select(ForLabs)=="H","orange","black"), pch=25 ,
+             bg=ifelse(Datasheet_sh.full.long%>%
+                         filter(Country=="Colombia")%>%
+                         select(ForLabs)=="H","orange","black"), cex=0.7)+
   facet_wrap(~`Site Name`)+
   theme_bw()+
   theme(axis.text.x = element_text(angle = 60, hjust=1))+
-  geom_text(aes(label= ifelse(ForLabs=="H","H","")), vjust=-0.3, size=3) +
   ylab("Absolute frequency")+
   xlab("Time bins")+
   labs(fill="Indicator")+
-  ggtitle("Absolute frequency of indicators through time, Colombia",
-          subtitle = "Number of direct/indirect indicators")
+  ggtitle("Cumulated number of direct and indirect indicators per bin, per site (Colombia)")
 
+g_1 <- grid.force(ggplotGrob(p))
+
+# add legend(extracted from FIG.2 and  8b)
+grid.newpage()
+vp1 <- viewport(width = 0.75, height = 0.8, x = 0.4, y = .5)
+vplegI <- viewport(width = 0.25, height = 1, x = 0.9, y = 0.6)
+vplegL<- viewport(width = 0.25, height = 1, x = 0.9, y = 0.5)
+
+upViewport(0)
+pushViewport(vp1)
+grid.draw(g_1)
+
+upViewport(0)
+pushViewport(vplegI)
+grid.draw(legend_di)
+
+upViewport(0)
+pushViewport(vplegL)
+grid.draw(legend_l)
 
 #### FIGURE 13_Ven ------------------------------------------
 
-ggplot(data=Datasheet_sh.full.long%>%
+p<-ggplot(data=Datasheet_sh.full.long%>%
          filter(Country=="Venezuela"), 
        aes(x = reorder(Bin_num,-Bin_num),y=SUM,fill=IND))+
   geom_bar(stat = "identity",width = 1)+
-  scale_fill_manual(values = c("#00BFC4", "#F8766D"))+
+  scale_fill_manual(values = c("#00BFC4", "#F8766D"), guide=F)+
+  geom_point(aes(x=reorder(Bin_num,-Bin_num),y=25),
+             col=ifelse(Datasheet_sh.full.long%>%
+                          filter(Country=="Venezuela")%>%
+                          select(ForLabs)=="H","orange","black"), pch=25 ,
+             bg=ifelse(Datasheet_sh.full.long%>%
+                         filter(Country=="Venezuela")%>%
+                         select(ForLabs)=="H","orange","black"), cex=0.7)+
   facet_wrap(~`Site Name`)+
   theme_bw()+
   theme(axis.text.x = element_text(angle = 60, hjust=1))+
@@ -3760,25 +2574,69 @@ ggplot(data=Datasheet_sh.full.long%>%
   ylab("Absolute frequency")+
   xlab("Time bins")+
   labs(fill="Indicator")+
-  ggtitle("Absolute frequency of indicators through time, Venezuela",
-          subtitle = "Number of direct/indirect indicators")
+  ggtitle("Cumulated number of direct and indirect indicators per bin, per site (Venezuela)")
+
+g_1 <- grid.force(ggplotGrob(p))
+
+# add legend(extracted from FIG.2 and  8b)
+grid.newpage()
+vp1 <- viewport(width = 0.75, height = 0.8, x = 0.4, y = .5)
+vplegI <- viewport(width = 0.25, height = 1, x = 0.9, y = 0.6)
+vplegL<- viewport(width = 0.25, height = 1, x = 0.9, y = 0.5)
+
+upViewport(0)
+pushViewport(vp1)
+grid.draw(g_1)
+
+upViewport(0)
+pushViewport(vplegI)
+grid.draw(legend_di)
+
+upViewport(0)
+pushViewport(vplegL)
+grid.draw(legend_l)
 
 #### FIGURE 13_Ec ------------------------------------------
 
-ggplot(data=Datasheet_sh.full.long%>%
+p<-ggplot(data=Datasheet_sh.full.long%>%
          filter(Country=="Ecuador"), 
        aes(x = reorder(Bin_num,-Bin_num),y=SUM,fill=IND))+
   geom_bar(stat = "identity",width = 1)+
-  scale_fill_manual(values = c("#00BFC4", "#F8766D"))+
+  scale_fill_manual(values = c("#00BFC4", "#F8766D"), guide=F)+
+  geom_point(aes(x=reorder(Bin_num,-Bin_num),y=25),
+             col=ifelse(Datasheet_sh.full.long%>%
+                          filter(Country=="Ecuador")%>%
+                          select(ForLabs)=="H","orange","black"), pch=25 ,
+             bg=ifelse(Datasheet_sh.full.long%>%
+                         filter(Country=="Ecuador")%>%
+                         select(ForLabs)=="H","orange","black"), cex=0.7)+
   facet_wrap(~`Site Name`)+
   theme_bw()+
   theme(axis.text.x = element_text(angle = 60, hjust=1))+
-  geom_text(aes(label= ifelse(ForLabs=="H","H","")), vjust=-0.3, size=3) +
   ylab("Absolute frequency")+
   xlab("Time bins")+
   labs(fill="Indicator")+
-  ggtitle("Absolute frequency of indicators through time, Ecuador",
-          subtitle = "Number of direct/indirect indicators")
+  ggtitle("Cumulated number of direct and indirect indicators per bin, per site (Ecuador)")
+
+g_1 <- grid.force(ggplotGrob(p))
+
+# add legend(extracted from FIG.2 and  8b)
+grid.newpage()
+vp1 <- viewport(width = 0.75, height = 0.8, x = 0.4, y = .5)
+vplegI <- viewport(width = 0.25, height = 1, x = 0.9, y = 0.6)
+vplegL<- viewport(width = 0.25, height = 1, x = 0.9, y = 0.5)
+
+upViewport(0)
+pushViewport(vp1)
+grid.draw(g_1)
+
+upViewport(0)
+pushViewport(vplegI)
+grid.draw(legend_di)
+
+upViewport(0)
+pushViewport(vplegL)
+grid.draw(legend_l)
 
 # FIGURE 13_under 2k mt-------------------------------------------------
 
@@ -3787,14 +2645,19 @@ p<-ggplot(data=Datasheet_sh.full.long%>%
           aes(x = reorder(Bin_num,-Bin_num),y=SUM,fill=IND))+
   geom_bar(stat = "identity",width = 1)+
   scale_fill_manual(values = c("#00BFC4", "#F8766D"), guide=F)+
+  geom_point(aes(x=reorder(Bin_num,-Bin_num),y=25),
+             col=ifelse(Datasheet_sh.full.long%>%
+                          filter(Altitude < 2000)%>%
+                          select(ForLabs)=="H","orange","black"), pch=25 ,
+             bg=ifelse(Datasheet_sh.full.long%>%
+                         filter(Altitude < 2000)%>%
+                         select(ForLabs)=="H","orange","black"), cex=0.7)+
   facet_wrap(~`Site Name`)+
   theme_bw()+
   theme(axis.text.x = element_text(angle = 60, hjust=1))+
-  geom_text(aes(label= ifelse(ForLabs=="H","H","")), vjust=-0.3, size=3) +
   ylab("Absolute frequency")+
   xlab("Time bins")+
-  ggtitle("Absolute frequency of indicators through time, between 1000 and 2000 m of altitude",
-          subtitle = "Number of direct/indirect indicators")
+  ggtitle("Cumulated number of direct and indirect indicators per bin, per site (between 1000 and 2000 m of altitude)")
 
 g_1 <- grid.force(ggplotGrob(p))   #df to see the right path of text title
 grobs_df <- do.call(cbind.data.frame, grid.ls(g_1, print = FALSE)) 
@@ -3819,9 +2682,28 @@ for (i in 1:length(strip_bg_gpath)){
 } # Edit the grobs
 
 
-# add legend extracted from FIG.2, legend from fig 10b 
-plot_grid( g_1, plot_grid(legend_di,legend, ncol=1, nrow = 5, align='v'),
-           ncol = 2, rel_widths  = c(1, .2))
+# add legend(extracted from FIG.2 5b_Col and  8b)
+grid.newpage()
+vp1 <- viewport(width = 0.75, height = 0.8, x = 0.4, y = .5)
+vplegC <- viewport(width = 0.25, height = 1, x = 0.9, y = 0.6)
+vplegL<- viewport(width = 0.25, height = 1, x = 0.9, y = 0.4)
+vplegI<- viewport(width = 0.25, height = 1, x = 0.9, y = 0.5)
+
+upViewport(0)
+pushViewport(vp1)
+grid.draw(g_1)
+
+upViewport(0)
+pushViewport(vplegC)
+grid.draw(legend)
+
+upViewport(0)
+pushViewport(vplegL)
+grid.draw(legend_l)
+
+upViewport(0)
+pushViewport(vplegI)
+grid.draw(legend_di)
 
 # FIGURE 13_between 2 and 3k mt-------------------------------------------------
 
@@ -3830,15 +2712,20 @@ p<-ggplot(data=Datasheet_sh.full.long%>%
           aes(x = reorder(Bin_num,-Bin_num),y=SUM,fill=IND))+
   geom_bar(stat = "identity",width = 1)+
   scale_fill_manual(values = c("#00BFC4", "#F8766D"), guide=F)+
+  geom_point(aes(x=reorder(Bin_num,-Bin_num),y=25),
+             col=ifelse(Datasheet_sh.full.long%>%
+                          filter(Altitude %in% 2000:3000)%>%
+                          select(ForLabs)=="H","orange","black"), pch=25 ,
+             bg=ifelse(Datasheet_sh.full.long%>%
+                         filter(Altitude %in% 2000:3000)%>%
+                         select(ForLabs)=="H","orange","black"), cex=0.7)+
   facet_wrap(~`Site Name`)+
   theme_bw()+
   theme(axis.text.x = element_text(angle = 60, hjust=1))+
-  geom_text(aes(label= ifelse(ForLabs=="H","H","")), vjust=-0.3, size=3) +
   ylab("Absolute frequency")+
   xlab("Time bins")+
   labs(fill="Indicator")+
-  ggtitle("Absolute frequency of indicators through time, between 2000 and 3000 m of altitude",
-          subtitle = "Number of direct/indirect indicators")
+  ggtitle("Cumulated number of direct and indirect indicators per bin, per site (between 2000 and 3000 m of altitude)")
 
 g_1 <- grid.force(ggplotGrob(p))   #df to see the right path of text title
 grobs_df <- do.call(cbind.data.frame, grid.ls(g_1, print = FALSE)) 
@@ -3862,9 +2749,28 @@ for (i in 1:length(strip_bg_gpath)){
   g_1 <- editGrob(grob = g_1, gPath = strip_txt_gpath[i], gp = gpar(col = txt_colors[i]))
 } # Edit the grobs
 
-# add legend extracted from FIG.2, legend from fig 10b 
-plot_grid( g_1, plot_grid(legend_di,legend, ncol=1, nrow = 5, align='v'),
-           ncol = 2, rel_widths  = c(1, .2))
+# add legend(extracted from FIG.2 5b_Col and  8b)
+grid.newpage()
+vp1 <- viewport(width = 0.75, height = 0.8, x = 0.4, y = .5)
+vplegC <- viewport(width = 0.25, height = 1, x = 0.9, y = 0.6)
+vplegL<- viewport(width = 0.25, height = 1, x = 0.9, y = 0.4)
+vplegI<- viewport(width = 0.25, height = 1, x = 0.9, y = 0.5)
+
+upViewport(0)
+pushViewport(vp1)
+grid.draw(g_1)
+
+upViewport(0)
+pushViewport(vplegC)
+grid.draw(legend)
+
+upViewport(0)
+pushViewport(vplegL)
+grid.draw(legend_l)
+
+upViewport(0)
+pushViewport(vplegI)
+grid.draw(legend_di)
 
 # FIGURE 13_between 3 and 4k mt-------------------------------------------------
 
@@ -3873,15 +2779,21 @@ p<-ggplot(data=Datasheet_sh.full.long%>%
           aes(x = reorder(Bin_num,-Bin_num),y=SUM,fill=IND))+
   geom_bar(stat = "identity",width = 1)+
   scale_fill_manual(values = c("#00BFC4", "#F8766D"), guide=F)+
+  geom_point(aes(x=reorder(Bin_num,-Bin_num),y=25),
+             col=ifelse(Datasheet_sh.full.long%>%
+                          filter(Altitude %in% 3000:4215)%>%
+                          select(ForLabs)=="H","orange","black"), pch=25 ,
+             bg=ifelse(Datasheet_sh.full.long%>%
+                         filter(Altitude %in% 3000:4215)%>%
+                         select(ForLabs)=="H","orange","black"), cex=0.7)+
   facet_wrap(~`Site Name`)+
   theme_bw()+
   theme(axis.text.x = element_text(angle = 60, hjust=1))+
-  geom_text(aes(label= ifelse(ForLabs=="H","H","")), vjust=-0.3, size=3) +
   ylab("Absolute frequency")+
   xlab("Time bins")+
   labs(fill="Indicator")+
-  ggtitle("Absolute frequency of indicators through time, between 3000 m and max altitude where sites found",
-          subtitle = "Number of direct/indirect indicators")
+  ggtitle("Cumulated number of direct and indirect indicators per bin, per site (between 3000 and 4215 m of altitude)")
+
 
 g_1 <- grid.force(ggplotGrob(p))   #df to see the right path of text title
 grobs_df <- do.call(cbind.data.frame, grid.ls(g_1, print = FALSE)) 
@@ -3909,35 +2821,53 @@ for (i in 1:length(strip_bg_gpath)){
   g_1 <- editGrob(grob = g_1, gPath = strip_txt_gpath[i], gp = gpar(col = txt_colors[i]))
 } # Edit the grobs
 
-# add legend extracted from FIG.2, legend from fig 10b 
-plot_grid( g_1, plot_grid(legend_di,legend, ncol=1, nrow = 5, align='v'),
-           ncol = 2, rel_widths  = c(1, .2))
+# add legend(extracted from FIG.2 5b_Col and  8b)
+grid.newpage()
+vp1 <- viewport(width = 0.75, height = 0.8, x = 0.4, y = .5)
+vplegC <- viewport(width = 0.25, height = 1, x = 0.9, y = 0.6)
+vplegL<- viewport(width = 0.25, height = 1, x = 0.9, y = 0.4)
+vplegI<- viewport(width = 0.25, height = 1, x = 0.9, y = 0.5)
 
+upViewport(0)
+pushViewport(vp1)
+grid.draw(g_1)
+
+upViewport(0)
+pushViewport(vplegC)
+grid.draw(legend)
+
+upViewport(0)
+pushViewport(vplegL)
+grid.draw(legend_l)
+
+upViewport(0)
+pushViewport(vplegI)
+grid.draw(legend_di)
 
 #### FIGURE 13b------------------------------------------
 # comparison for food potential, stacked bars 
 
-DF_sh.High.Sum<-DF_sh.High.Sum%>%
+DF_sh.High.Sum1<-DF_sh.High.Sum%>%
   mutate(IND=rep("High"))
-colnames(DF_sh.High.Sum)[1]<-"SUM"
+colnames(DF_sh.High.Sum1)[1]<-"SUM"
 
-DF_sh.Low.Sum <- DF_sh.Low.Sum %>% 
+DF_sh.Low.Sum1 <- DF_sh.Low.Sum %>% 
   mutate(IND=rep("Low"))
-colnames(DF_sh.Low.Sum)[1]<-"SUM"
+colnames(DF_sh.Low.Sum1)[1]<-"SUM"
 
-DF_sh.No.Sum <- DF_sh.No.Sum %>% 
+DF_sh.No.Sum1<- DF_sh.No.Sum %>% 
   mutate(IND=rep("No"))
-colnames(DF_sh.No.Sum)[1]<-"SUM"
+colnames(DF_sh.No.Sum1)[1]<-"SUM"
 
 
 Datasheet_sh.pot.full.long<-rbind(bind_cols(Datasheet_shaved,
-                                            DF_sh.High.Sum,
+                                            DF_sh.High.Sum1,
                                             Datasheet_sh.full%>% select(ForLabs)),
                               bind_cols(Datasheet_shaved,
-                                        DF_sh.Low.Sum,
+                                        DF_sh.Low.Sum1,
                                         Datasheet_sh.full%>% select(ForLabs)),
                               bind_cols(Datasheet_shaved,
-                                        DF_sh.No.Sum,
+                                        DF_sh.No.Sum1,
                                         Datasheet_sh.full%>% select(ForLabs)))
 
 # sites ordered according to lat, does not work in sorting facets in plot
@@ -3949,18 +2879,29 @@ Datasheet_sh.pot.full.long$`Site Name`<-fct_reorder(Datasheet_sh.pot.full.long$`
 p<-ggplot(data=Datasheet_sh.pot.full.long, 
        aes(x = reorder(Bin_num,-Bin_num),y=SUM,fill=IND))+
   geom_bar(stat = "identity",width = 1)+
+  geom_point(aes(x=reorder(Bin_num,-Bin_num),y=25),
+             col=ifelse(Datasheet_sh.pot.full.long$ForLabs=="H","orange","black"), pch=25 ,
+             bg=ifelse(Datasheet_sh.pot.full.long$ForLabs=="H","orange","black"), cex=0.7)+
   facet_wrap(~`Site Name`)+
   theme_bw()+
   theme(axis.text.x = element_text(angle = 60, hjust=1))+
-  geom_text(aes(label= ifelse(ForLabs=="H","H","")), vjust=-0.3, size=3) +
   ylab("Absolute frequency")+
   xlab("Time bins")+
+  #scale_fill_discrete(breaks = c("High","Low"))+    #to produce legend for fig 7_H/L
   scale_fill_discrete(guide=F)+
   labs(fill="Indicator")+
-  ggtitle("Absolute frequency of indicators through time",
-          subtitle = "Number of indicators with high/low/no food potential")
+  ggtitle("Cumulated number of different food potential indicators per bin")
 
 g_1 <- grid.force(ggplotGrob(p))   #df to see the right path of text title
+
+# extract legend from plot
+legend_hln<-get_legend(g_1)
+
+#extract legend(use for fig 7b_H/L)
+#legend_hl<-get_legend(g_1)
+
+# add scale_fill_dscete( scale= F) to original plot p
+
 grobs_df <- do.call(cbind.data.frame, grid.ls(g_1, print = FALSE)) 
 grobs_df$gPath_full <- paste(grobs_df$gPath, grobs_df$name, sep = "::") # Build optimal gPaths that will be later used to identify grobs and edit them
 grobs_df$gPath_full <- gsub(pattern = "layout::", 
@@ -3992,63 +2933,155 @@ for (i in 1:length(strip_bg_gpath)){
   g_1 <- editGrob(grob = g_1, gPath = strip_txt_gpath[i], gp = gpar(col = txt_colors[i]))
 } # Edit the grobs
 
+# add legend(extracted from FIG.2, prev plot and  8b)
+grid.newpage()
+vp1 <- viewport(width = 0.75, height = 0.8, x = 0.4, y = .5)
+vplegC <- viewport(width = 0.25, height = 1, x = 0.9, y = 0.6)
+vplegL<- viewport(width = 0.25, height = 1, x = 0.9, y = 0.4)
+vplegI<- viewport(width = 0.25, height = 1, x = 0.9, y = 0.5)
 
-# extract legend from plot
-legend_di<-get_legend(g_1)
+upViewport(0)
+pushViewport(vp1)
+grid.draw(g_1)
 
-# add scale_fill_dscete( scale= F) to original plot p
+upViewport(0)
+pushViewport(vplegC)
+grid.draw(legend)
 
-# add legend extracted from FIG.2, legend from this plot 
-plot_grid( g_1, plot_grid(legend_di,legend, ncol=1, nrow = 5, align='v'),
-           ncol = 2, rel_widths  = c(1, .2))
+upViewport(0)
+pushViewport(vplegL)
+grid.draw(legend_l)
+
+upViewport(0)
+pushViewport(vplegI)
+grid.draw(legend_hln)
 
 ### FIGURE 13b_Col---------------------------------
 
-ggplot(data=Datasheet_sh.pot.full.long%>%
+p<-ggplot(data=Datasheet_sh.pot.full.long%>%
          filter(Country=="Colombia"), 
        aes(x = reorder(Bin_num,-Bin_num),y=SUM,fill=IND))+
   geom_bar(stat = "identity",width = 1)+
+  scale_fill_discrete(guide=F)+
+  geom_point(aes(x=reorder(Bin_num,-Bin_num),y=25),
+             col=ifelse(Datasheet_sh.pot.full.long%>%
+                          filter(Country=="Colombia")%>%
+                          select(ForLabs)=="H","orange","black"), pch=25 ,
+             bg=ifelse(Datasheet_sh.pot.full.long%>%
+                         filter(Country=="Colombia")%>%
+                         select(ForLabs)=="H","orange","black"), cex=0.7)+
   facet_wrap(~`Site Name`)+
   theme_bw()+
   theme(axis.text.x = element_text(angle = 60, hjust=1))+
-  geom_text(aes(label= ifelse(ForLabs=="H","H","")), vjust=-0.3, size=3) +
   ylab("Absolute frequency")+
   xlab("Time bins")+
   labs(fill="Indicator")+
-  ggtitle("Absolute frequency of indicators through time, Colombia",
-          subtitle = "Number of indicators with high/low/no food potential")
+  ggtitle("Cumulated number different food potential indicators per bin, per site (Colombia)")
+
+g_1 <- grid.force(ggplotGrob(p))
+
+# add legend(extracted from FIG.2, prev plot and  8b)
+grid.newpage()
+vp1 <- viewport(width = 0.75, height = 0.8, x = 0.4, y = .5)
+vplegL<- viewport(width = 0.25, height = 1, x = 0.9, y = 0.4)
+vplegI<- viewport(width = 0.25, height = 1, x = 0.9, y = 0.5)
+
+upViewport(0)
+pushViewport(vp1)
+grid.draw(g_1)
+
+upViewport(0)
+pushViewport(vplegL)
+grid.draw(legend_l)
+
+upViewport(0)
+pushViewport(vplegI)
+grid.draw(legend_hln)
 
 ### FIGURE 13b_Ven---------------------------------
 
-ggplot(data=Datasheet_sh.pot.full.long%>%
-         filter(Country=="Venezuela"), 
-       aes(x = reorder(Bin_num,-Bin_num),y=SUM,fill=IND))+
+p<-ggplot(data=Datasheet_sh.pot.full.long%>%
+            filter(Country=="Venezuela"), 
+          aes(x = reorder(Bin_num,-Bin_num),y=SUM,fill=IND))+
   geom_bar(stat = "identity",width = 1)+
+  scale_fill_discrete(guide=F)+
+  geom_point(aes(x=reorder(Bin_num,-Bin_num),y=25),
+             col=ifelse(Datasheet_sh.pot.full.long%>%
+                          filter(Country=="Venezuela")%>%
+                          select(ForLabs)=="H","orange","black"), pch=25 ,
+             bg=ifelse(Datasheet_sh.pot.full.long%>%
+                         filter(Country=="Venezuela")%>%
+                         select(ForLabs)=="H","orange","black"), cex=0.7)+
   facet_wrap(~`Site Name`)+
   theme_bw()+
   theme(axis.text.x = element_text(angle = 60, hjust=1))+
-  geom_text(aes(label= ifelse(ForLabs=="H","H","")), vjust=-0.3, size=3) +
   ylab("Absolute frequency")+
   xlab("Time bins")+
   labs(fill="Indicator")+
-  ggtitle("Absolute frequency of indicators through time, Venezuela",
-          subtitle = "Number of indicators with high/low/no food potential")
+  ggtitle("Cumulated number of different food potential indicators per bin, per site (Venezuela)")
+
+g_1 <- grid.force(ggplotGrob(p))
+
+# add legend(extracted from FIG.2, prev plot and  8b)
+grid.newpage()
+vp1 <- viewport(width = 0.75, height = 0.8, x = 0.4, y = .5)
+vplegL<- viewport(width = 0.25, height = 1, x = 0.9, y = 0.4)
+vplegI<- viewport(width = 0.25, height = 1, x = 0.9, y = 0.5)
+
+upViewport(0)
+pushViewport(vp1)
+grid.draw(g_1)
+
+upViewport(0)
+pushViewport(vplegL)
+grid.draw(legend_l)
+
+upViewport(0)
+pushViewport(vplegI)
+grid.draw(legend_hln)
+
 
 ### FIGURE 13b_Ec---------------------------------
 
-ggplot(data=Datasheet_sh.pot.full.long%>%
-         filter(Country=="Ecuador"), 
-       aes(x = reorder(Bin_num,-Bin_num),y=SUM,fill=IND))+
+p<-ggplot(data=Datasheet_sh.pot.full.long%>%
+            filter(Country=="Ecuador"), 
+          aes(x = reorder(Bin_num,-Bin_num),y=SUM,fill=IND))+
   geom_bar(stat = "identity",width = 1)+
+  scale_fill_discrete(guide=F)+
+  geom_point(aes(x=reorder(Bin_num,-Bin_num),y=25),
+             col=ifelse(Datasheet_sh.pot.full.long%>%
+                          filter(Country=="Ecuador")%>%
+                          select(ForLabs)=="H","orange","black"), pch=25 ,
+             bg=ifelse(Datasheet_sh.pot.full.long%>%
+                         filter(Country=="Ecuador")%>%
+                         select(ForLabs)=="H","orange","black"), cex=0.7)+
   facet_wrap(~`Site Name`)+
   theme_bw()+
   theme(axis.text.x = element_text(angle = 60, hjust=1))+
-  geom_text(aes(label= ifelse(ForLabs=="H","H","")), vjust=-0.3, size=3) +
   ylab("Absolute frequency")+
   xlab("Time bins")+
   labs(fill="Indicator")+
-  ggtitle("Absolute frequency of indicators through time, Ecuador",
-          subtitle = "Number of indicators with high/low/no food potential")
+  ggtitle("Cumulated number different food potential indicators per bin, per site (Ecuador)")
+
+g_1 <- grid.force(ggplotGrob(p))
+
+# add legend(extracted from FIG.2, prev plot and  8b)
+grid.newpage()
+vp1 <- viewport(width = 0.75, height = 0.8, x = 0.4, y = .5)
+vplegL<- viewport(width = 0.25, height = 1, x = 0.9, y = 0.4)
+vplegI<- viewport(width = 0.25, height = 1, x = 0.9, y = 0.5)
+
+upViewport(0)
+pushViewport(vp1)
+grid.draw(g_1)
+
+upViewport(0)
+pushViewport(vplegL)
+grid.draw(legend_l)
+
+upViewport(0)
+pushViewport(vplegI)
+grid.draw(legend_hln)
 
 # FIGURE 13b_under 2k mt-------------------------------------------------
 
@@ -4056,15 +3089,20 @@ p<-ggplot(data=Datasheet_sh.pot.full.long%>%
             filter(Altitude < 2000), 
           aes(x = reorder(Bin_num,-Bin_num),y=SUM,fill=IND))+
   geom_bar(stat = "identity",width = 1)+
+  scale_fill_discrete(guide=F)+
+  geom_point(aes(x=reorder(Bin_num,-Bin_num),y=25),
+             col=ifelse(Datasheet_sh.pot.full.long%>%
+                          filter(Altitude < 2000)%>%
+                          select(ForLabs)=="H","orange","black"), pch=25 ,
+             bg=ifelse(Datasheet_sh.pot.full.long%>%
+                         filter(Altitude < 2000)%>%
+                         select(ForLabs)=="H","orange","black"), cex=0.7)+
   facet_wrap(~`Site Name`)+
   theme_bw()+
   theme(axis.text.x = element_text(angle = 60, hjust=1))+
-  geom_text(aes(label= ifelse(ForLabs=="H","H","")), vjust=-0.3, size=3) +
   ylab("Absolute frequency")+
   xlab("Time bins")+
-  scale_fill_discrete(guide=F)+
-  ggtitle("Absolute frequency of indicators through time, between 1000 and 2000 m of altitude",
-          subtitle = "Number of indicators with high/low/no food potential")
+  ggtitle("Cumulated number of direct and indirect indicators per bin, per site (between 1000 and 2000 m of altitude)")
 
 g_1 <- grid.force(ggplotGrob(p))   #df to see the right path of text title
 grobs_df <- do.call(cbind.data.frame, grid.ls(g_1, print = FALSE)) 
@@ -4089,9 +3127,28 @@ for (i in 1:length(strip_bg_gpath)){
 } # Edit the grobs
 
 
-# add legend extracted from FIG.2, legend from fig 10c
-plot_grid( g_1, plot_grid(legend_di,legend, ncol=1, nrow = 5, align='v'),
-           ncol = 2, rel_widths  = c(1, .2))
+# add legend(extracted from FIG.2 5b_Col and  8b)
+grid.newpage()
+vp1 <- viewport(width = 0.75, height = 0.8, x = 0.4, y = .5)
+vplegC <- viewport(width = 0.25, height = 1, x = 0.9, y = 0.6)
+vplegL<- viewport(width = 0.25, height = 1, x = 0.9, y = 0.4)
+vplegI<- viewport(width = 0.25, height = 1, x = 0.9, y = 0.5)
+
+upViewport(0)
+pushViewport(vp1)
+grid.draw(g_1)
+
+upViewport(0)
+pushViewport(vplegC)
+grid.draw(legend)
+
+upViewport(0)
+pushViewport(vplegL)
+grid.draw(legend_l)
+
+upViewport(0)
+pushViewport(vplegI)
+grid.draw(legend_hln)
 
 # FIGURE 13b_between 2 and 3k mt-------------------------------------------------
 
@@ -4099,15 +3156,20 @@ p<-ggplot(data=Datasheet_sh.pot.full.long%>%
             filter(Altitude %in% 2000:3000), 
           aes(x = reorder(Bin_num,-Bin_num),y=SUM,fill=IND))+
   geom_bar(stat = "identity",width = 1)+
+  scale_fill_discrete(guide=F)+
+  geom_point(aes(x=reorder(Bin_num,-Bin_num),y=25),
+             col=ifelse(Datasheet_sh.pot.full.long%>%
+                          filter(Altitude %in% 2000:3000)%>%
+                          select(ForLabs)=="H","orange","black"), pch=25 ,
+             bg=ifelse(Datasheet_sh.pot.full.long%>%
+                         filter(Altitude %in% 2000:3000)%>%
+                         select(ForLabs)=="H","orange","black"), cex=0.7)+
   facet_wrap(~`Site Name`)+
   theme_bw()+
   theme(axis.text.x = element_text(angle = 60, hjust=1))+
-  geom_text(aes(label= ifelse(ForLabs=="H","H","")), vjust=-0.3, size=3) +
   ylab("Absolute frequency")+
   xlab("Time bins")+
-  scale_fill_discrete(guide=F)+
-  ggtitle("Absolute frequency of indicators through time, between 2000 and 3000 m of altitude",
-          subtitle = "Number of direct/indirect indicators")
+  ggtitle("Cumulated number of direct and indirect indicators per bin, per site (between 2000 and 3000 m of altitude)")
 
 g_1 <- grid.force(ggplotGrob(p))   #df to see the right path of text title
 grobs_df <- do.call(cbind.data.frame, grid.ls(g_1, print = FALSE)) 
@@ -4132,9 +3194,28 @@ for (i in 1:length(strip_bg_gpath)){
 } # Edit the grobs
 
 
-# add legend extracted from FIG.2, legend from fig 10c
-plot_grid( g_1, plot_grid(legend_di,legend, ncol=1, nrow = 5, align='v'),
-           ncol = 2, rel_widths  = c(1, .2))
+# add legend(extracted from FIG.2 5b_Col and  8b)
+grid.newpage()
+vp1 <- viewport(width = 0.75, height = 0.8, x = 0.4, y = .5)
+vplegC <- viewport(width = 0.25, height = 1, x = 0.9, y = 0.6)
+vplegL<- viewport(width = 0.25, height = 1, x = 0.9, y = 0.4)
+vplegI<- viewport(width = 0.25, height = 1, x = 0.9, y = 0.5)
+
+upViewport(0)
+pushViewport(vp1)
+grid.draw(g_1)
+
+upViewport(0)
+pushViewport(vplegC)
+grid.draw(legend)
+
+upViewport(0)
+pushViewport(vplegL)
+grid.draw(legend_l)
+
+upViewport(0)
+pushViewport(vplegI)
+grid.draw(legend_hln)
 
 # FIGURE 13b_between 3 and 4k mt-------------------------------------------------
 
@@ -4142,15 +3223,20 @@ p<-ggplot(data=Datasheet_sh.pot.full.long%>%
             filter(Altitude %in% 3000:4215), 
           aes(x = reorder(Bin_num,-Bin_num),y=SUM,fill=IND))+
   geom_bar(stat = "identity",width = 1)+
-  facet_wrap(~`Site Name`)+
-  theme_bw()+
-  theme(axis.text.x = element_text(angle = 60, hjust=1))+
-  geom_text(aes(label= ifelse(ForLabs=="H","H","")), vjust=-0.3, size=3) +
-  ylab("Absolute frequency")+
-  xlab("Time bins")+
   scale_fill_discrete(guide=F)+
-  ggtitle("Absolute frequency of indicators through time, between 3000 m and max altitude where sites found",
-          subtitle = "Number of direct/indirect indicators")
+  geom_point(aes(x=reorder(Bin_num,-Bin_num),y=25),
+             col=ifelse(Datasheet_sh.pot.full.long%>%
+                          filter(Altitude %in% 3000:4215)%>%
+                          select(ForLabs)=="H","orange","black"), pch=25 ,
+             bg=ifelse(Datasheet_sh.pot.full.long%>%
+                         filter(Altitude %in% 3000:4215)%>%
+                         select(ForLabs)=="H","orange","black"), cex=0.7)+
+  facet_wrap(~`Site Name`)+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 60, hjust=1))+
+  ylab("Absolute frequency")+
+  xlab("Time bins")+
+  ggtitle("Cumulated number of direct and indirect indicators per bin, per site (between 3000 and 4215 m of altitude)")
 
 g_1 <- grid.force(ggplotGrob(p))   #df to see the right path of text title
 grobs_df <- do.call(cbind.data.frame, grid.ls(g_1, print = FALSE)) 
@@ -4178,294 +3264,28 @@ for (i in 1:length(strip_bg_gpath)){
   g_1 <- editGrob(grob = g_1, gPath = strip_txt_gpath[i], gp = gpar(col = txt_colors[i]))
 } # Edit the grobs
 
-# add legend extracted from FIG.2, legend from fig 10c
-plot_grid( g_1, plot_grid(legend_di,legend, ncol=1, nrow = 5, align='v'),
-           ncol = 2, rel_widths  = c(1, .2))
+# add legend(extracted from FIG.2 5b_Col and  8b)
+grid.newpage()
+vp1 <- viewport(width = 0.75, height = 0.8, x = 0.4, y = .5)
+vplegC <- viewport(width = 0.25, height = 1, x = 0.9, y = 0.6)
+vplegL<- viewport(width = 0.25, height = 1, x = 0.9, y = 0.4)
+vplegI<- viewport(width = 0.25, height = 1, x = 0.9, y = 0.5)
 
-# FIGURE 13c (do not do)-----------------------------------------------
-# comparison between high and low food potential indicators, stacked bars
+upViewport(0)
+pushViewport(vp1)
+grid.draw(g_1)
 
-#to see colors of plot above
-ggplot_build(p)$data
+upViewport(0)
+pushViewport(vplegC)
+grid.draw(legend)
 
-#plot
-p<-Datasheet_sh.pot.full.long%>%
-  filter(IND %in% c("High", "Low"))%>%
-  ggplot(aes(x = reorder(Bin_num,-Bin_num),y=SUM,fill=IND))+
-  geom_bar(stat = "identity",width = 1)+
-  scale_fill_manual(values = c("#F8766D", "#00BA38"))+#, guide=F)+
-  facet_wrap(~`Site Name`)+
-  theme_bw()+
-  theme(axis.text.x = element_text(angle = 90, hjust=1))+
-  geom_text(aes(label= ifelse(ForLabs=="H","H","")), vjust=-0.3, size=3) +
-  ylab("Absolute frequency")+
-  xlab("Time bins")+
-  labs(fill="Potential food")+
-  ggtitle("Absolute frequency of indicators through time",
-          subtitle="Number of indicators with high/ low food potential")
+upViewport(0)
+pushViewport(vplegL)
+grid.draw(legend_l)
 
-g_1 <- grid.force(ggplotGrob(p))   #df to see the right path of text title
-grobs_df <- do.call(cbind.data.frame, grid.ls(g_1, print = FALSE)) 
-grobs_df$gPath_full <- paste(grobs_df$gPath, grobs_df$name, sep = "::") # Build optimal gPaths that will be later used to identify grobs and edit them
-grobs_df$gPath_full <- gsub(pattern = "layout::", 
-                            replacement = "", 
-                            x = grobs_df$gPath_full, 
-                            fixed = TRUE)
-
-strip_bg_gpath <- grobs_df$gPath_full[grepl(pattern = ".*strip\\.background.*", # Get the gPaths of the strip background grob
-                                            x = grobs_df$gPath_full)]
-strip_txt_gpath <- grobs_df$gPath_full[grepl(pattern = "strip.*titleGrob.*text.*", # Get the gPaths of the strip titles
-                                             x = grobs_df$gPath_full)]
-
-fills <-  c(rep("#636363",17), # vector of colors to fill rectangles
-            rep("#BDBDBD",2),
-            rep("#636363",5),
-            rep( "#BDBDBD",7),
-            rep( "#F0F0F0",2),
-            rep( "#BDBDBD",5)) 
-
-txt_colors <- c(rep("white",17), # vector of colors for text
-                rep("black",2),
-                rep("white",5),
-                rep( "black",7),
-                rep( "black",2),
-                rep( "black",5))
-
-for (i in 1:length(strip_bg_gpath)){
-  g_1 <- editGrob(grob = g_1, gPath = strip_bg_gpath[i], gp = gpar(fill = fills[i]))
-  g_1 <- editGrob(grob = g_1, gPath = strip_txt_gpath[i], gp = gpar(col = txt_colors[i]))
-} # Edit the grobs
-
-
-grid.newpage(); grid.draw(g_1) # Draw the edited plot
-
-# extract legend from plot
-legend_di<-get_legend(g_1)
-
-# add scale_fill_dscete( scale= F) to original plot p
-
-# add legend extracted from FIG.2, legend from this plot 
-plot_grid( g_1, plot_grid(legend_di,legend, ncol=1, nrow = 5, align='v'),
-           ncol = 2, rel_widths  = c(1, .2))
-
-#### FIGURE 13c_Col (do not do)-----------------------------------
-
-Datasheet_sh.pot.full.long%>%
-  filter(IND %in% c("High", "Low") & Country=="Colombia")%>%
-  ggplot(aes(x = reorder(Bin_num,-Bin_num),y=SUM,fill=IND))+
-  geom_bar(stat = "identity",width = 1)+
-  scale_fill_manual(values = c("#F8766D", "#00BA38"))+
-  facet_wrap(~`Site Name`)+
-  theme_bw()+
-  theme(axis.text.x = element_text(angle = 90, hjust=1))+
-  geom_text(aes(label= ifelse(ForLabs=="H","H","")), vjust=-0.3, size=3) +
-  ylab("Absolute frequency")+
-  xlab("Time bins")+
-  ggtitle("Absolute frequency of indicators through time, Colombia",
-          subtitle="Number of indicators with high/ low food potential")
-
-#### FIGURE 13c_Ven (do not do)-----------------------------------
-
-Datasheet_sh.pot.full.long%>%
-  filter(IND %in% c("High", "Low") & Country=="Venezuela")%>%
-  ggplot(aes(x = reorder(Bin_num,-Bin_num),y=SUM,fill=IND))+
-  geom_bar(stat = "identity",width = 1)+
-  scale_fill_manual(values = c("#F8766D", "#00BA38"))+
-  facet_wrap(~`Site Name`)+
-  theme_bw()+
-  theme(axis.text.x = element_text(angle = 90, hjust=1))+
-  geom_text(aes(label= ifelse(ForLabs=="H","H","")), vjust=-0.3, size=3) +
-  ylab("Absolute frequency")+
-  xlab("Time bins")+
-  ggtitle("Absolute frequency of indicators through time, Venezuela",
-          subtitle="Number of indicators with high/ low food potential")
-
-#### FIGURE 13c_Ec (do not do)-----------------------------------
-
-Datasheet_sh.pot.full.long%>%
-  filter(IND %in% c("High", "Low") & Country=="Ecuador")%>%
-  ggplot(aes(x = reorder(Bin_num,-Bin_num),y=SUM,fill=IND))+
-  geom_bar(stat = "identity",width = 1)+
-  scale_fill_manual(values = c("#F8766D", "#00BA38"))+
-  facet_wrap(~`Site Name`)+
-  theme_bw()+
-  theme(axis.text.x = element_text(angle = 90, hjust=1))+
-  geom_text(aes(label= ifelse(ForLabs=="H","H","")), vjust=-0.3, size=3) +
-  ylab("Absolute frequency")+
-  xlab("Time bins")+
-  ggtitle("Absolute frequency of indicators through time, Ecuador",
-          subtitle="Number of indicators with high/ low food potential")
-
-# FIGURE 13c_under 2k mt (do not do)-------------------------------------------------
-
-p<-ggplot(data=Datasheet_sh.pot.full.long%>%
-            filter(Altitude < 2000 & IND %in% c("High", "Low")), 
-          aes(x = reorder(Bin_num,-Bin_num),y=SUM,fill=IND))+
-  geom_bar(stat = "identity",width = 1)+
-  scale_fill_manual(values = c("#F8766D", "#00BA38"), guide=F)+
-  facet_wrap(~`Site Name`)+
-  theme_bw()+
-  theme(axis.text.x = element_text(angle = 90, hjust=1))+
-  geom_text(aes(label= ifelse(ForLabs=="H","H","")), vjust=-0.3, size=3) +
-  ylab("Absolute frequency")+
-  xlab("Time bins")+
-  ggtitle("Absolute frequency of indicators through time, between 1000 and 2000 m of altitude",
-          subtitle = "Number of indicators with high/low/no food potential")
-
-g_1 <- grid.force(ggplotGrob(p))   #df to see the right path of text title
-grobs_df <- do.call(cbind.data.frame, grid.ls(g_1, print = FALSE)) 
-grobs_df$gPath_full <- paste(grobs_df$gPath, grobs_df$name, sep = "::") # Build optimal gPaths that will be later used to identify grobs and edit them
-grobs_df$gPath_full <- gsub(pattern = "layout::", 
-                            replacement = "", 
-                            x = grobs_df$gPath_full, 
-                            fixed = TRUE)
-
-strip_bg_gpath <- grobs_df$gPath_full[grepl(pattern = ".*strip\\.background.*", # Get the gPaths of the strip background grob
-                                            x = grobs_df$gPath_full)]
-strip_txt_gpath <- grobs_df$gPath_full[grepl(pattern = "strip.*titleGrob.*text.*", # Get the gPaths of the strip titles
-                                             x = grobs_df$gPath_full)]
-
-fills <-  c( rep("#BDBDBD",5)) # vector of colors to fill rectangles
-
-txt_colors <- c(rep("black",5)) # vector of colors for text
-
-for (i in 1:length(strip_bg_gpath)){
-  g_1 <- editGrob(grob = g_1, gPath = strip_bg_gpath[i], gp = gpar(fill = fills[i]))
-  g_1 <- editGrob(grob = g_1, gPath = strip_txt_gpath[i], gp = gpar(col = txt_colors[i]))
-} # Edit the grobs
-
-
-grid.newpage(); grid.draw(g_1) # Draw the edited plot
-
-# add legend extracted from FIG.2, legend from plot 10d
-plot_grid( g_1, plot_grid(legend_di,legend, ncol=1, nrow = 5, align='v'),
-           ncol = 2, rel_widths  = c(1, .2))
-
-# FIGURE 13c_between 2 and 3k mt (do not do)-------------------------------------------------
-
-p<-ggplot(data=Datasheet_sh.pot.full.long%>%
-            filter(Altitude %in% 2000:3000 & IND %in% c("High", "Low")), 
-          aes(x = reorder(Bin_num,-Bin_num),y=SUM,fill=IND))+
-  geom_bar(stat = "identity",width = 1)+
-  scale_fill_manual(values = c("#F8766D", "#00BA38"), guide=F)+
-  facet_wrap(~`Site Name`)+
-  theme_bw()+
-  theme(axis.text.x = element_text(angle = 90, hjust=1))+
-  geom_text(aes(label= ifelse(ForLabs=="H","H","")), vjust=-0.3, size=3) +
-  ylab("Absolute frequency")+
-  xlab("Time bins")+
-  ggtitle("Absolute frequency of indicators through time, between 2000 and 3000 m of altitude",
-          subtitle = "Number of direct/indirect indicators")
-
-g_1 <- grid.force(ggplotGrob(p))   #df to see the right path of text title
-grobs_df <- do.call(cbind.data.frame, grid.ls(g_1, print = FALSE)) 
-grobs_df$gPath_full <- paste(grobs_df$gPath, grobs_df$name, sep = "::") # Build optimal gPaths that will be later used to identify grobs and edit them
-grobs_df$gPath_full <- gsub(pattern = "layout::", 
-                            replacement = "", 
-                            x = grobs_df$gPath_full, 
-                            fixed = TRUE)
-
-strip_bg_gpath <- grobs_df$gPath_full[grepl(pattern = ".*strip\\.background.*", # Get the gPaths of the strip background grob
-                                            x = grobs_df$gPath_full)]
-strip_txt_gpath <- grobs_df$gPath_full[grepl(pattern = "strip.*titleGrob.*text.*", # Get the gPaths of the strip titles
-                                             x = grobs_df$gPath_full)]
-
-fills <-  c(rep ("#636363",6) ,rep("#BDBDBD",2),rep ("#636363",1)) # vector of colors to fill rectangles
-
-txt_colors <- c(rep("white",6),rep("black",2), rep("white",1)) # vector of colors for text
-
-for (i in 1:length(strip_bg_gpath)){
-  g_1 <- editGrob(grob = g_1, gPath = strip_bg_gpath[i], gp = gpar(fill = fills[i]))
-  g_1 <- editGrob(grob = g_1, gPath = strip_txt_gpath[i], gp = gpar(col = txt_colors[i]))
-} # Edit the grobs
-
-
-grid.newpage(); grid.draw(g_1) # Draw the edited plot
-
-# add legend extracted from FIG.2, legend from fig 10d 
-plot_grid( g_1, plot_grid(legend_di,legend, ncol=1, nrow = 5, align='v'),
-           ncol = 2, rel_widths  = c(1, .2))
-
-# FIGURE 13c_between 3 and 4k mt (do not do)-------------------------------------------------
-
-p<-ggplot(data=Datasheet_sh.pot.full.long%>%
-            filter(Altitude %in% 3000:4215 & IND %in% c("High", "Low")),
-          aes(x = reorder(Bin_num,-Bin_num),y=SUM,fill=IND))+
-  geom_bar(stat = "identity",width = 1)+
-  scale_fill_manual(values = c("#F8766D", "#00BA38"))+
-  facet_wrap(~`Site Name`)+
-  theme_bw()+
-  theme(axis.text.x = element_text(angle = 90, hjust=1))+
-  geom_text(aes(label= ifelse(ForLabs=="H","H","")), vjust=-0.3, size=3) +
-  ylab("Absolute frequency")+
-  xlab("Time bins")+
-  ggtitle("Absolute frequency of indicators through time, between 3000 m and max altitude where sites found",
-          subtitle = "Number of direct/indirect indicators")
-
-g_1 <- grid.force(ggplotGrob(p))   #df to see the right path of text title
-grobs_df <- do.call(cbind.data.frame, grid.ls(g_1, print = FALSE)) 
-grobs_df$gPath_full <- paste(grobs_df$gPath, grobs_df$name, sep = "::") # Build optimal gPaths that will be later used to identify grobs and edit them
-grobs_df$gPath_full <- gsub(pattern = "layout::", 
-                            replacement = "", 
-                            x = grobs_df$gPath_full, 
-                            fixed = TRUE)
-
-strip_bg_gpath <- grobs_df$gPath_full[grepl(pattern = ".*strip\\.background.*", # Get the gPaths of the strip background grob
-                                            x = grobs_df$gPath_full)]
-strip_txt_gpath <- grobs_df$gPath_full[grepl(pattern = "strip.*titleGrob.*text.*", # Get the gPaths of the strip titles
-                                             x = grobs_df$gPath_full)]
-
-fills <-  c(rep ("#636363",14) ,rep("#BDBDBD",4),
-            rep ("#636363",1),rep( "#F0F0F0",2),
-            rep ("#BDBDBD",3)) # vector of colors to fill rectangles
-
-txt_colors <- c(rep("white",14),
-                rep("black",4), 
-                rep("white",1), rep("black",5)) # vector of colors for text
-
-for (i in 1:length(strip_bg_gpath)){
-  g_1 <- editGrob(grob = g_1, gPath = strip_bg_gpath[i], gp = gpar(fill = fills[i]))
-  g_1 <- editGrob(grob = g_1, gPath = strip_txt_gpath[i], gp = gpar(col = txt_colors[i]))
-} # Edit the grobs
-
-
-grid.newpage(); grid.draw(g_1) # Draw the edited plot
-
-
-# add legend extracted from FIG.2, legend from fig 10d
-plot_grid( g_1, plot_grid(legend_di,legend, ncol=1, nrow = 5, align='v'),
-           ncol = 2, rel_widths  = c(1, .2))
-
-
-
-####FIGURE 14 (do not do)----------------------------------------------------
-#variation in percent of direct/indirect
-ggplot(data=Datasheet_sh.full.long,
-       aes(x = reorder(Bin_num,-Bin_num),y=SUM,fill=IND))+
-  geom_bar(stat = "identity",position = "fill",width = 0.5)+
-  scale_fill_manual(values = c("#00BFC4", "#F8766D"))+
-  facet_wrap(~`Site Name`)+
-  theme_bw()+
-  theme(axis.text.x = element_text(angle = 60, hjust=1))+
-  ylab("%")+
-  xlab("Time bins")+
-  labs(fill="Indicator")+
-  ggtitle("Proportion of indirect/direct indicators through time")
-
-
-####FIGURE 14b (do not do)----------------------------------------------------
-#variation in percent of ind with food potential
-ggplot(data=Datasheet_sh.pot.full.long,
-       aes(x = reorder(Bin_num,-Bin_num),y=SUM,fill=IND))+
-  geom_bar(stat = "identity",width = 0.5, position = "fill")+
-  scale_fill_manual(values = c("#F8766D","#00BA38","#619CFF"))+
-  facet_wrap(~`Site Name`)+
-  theme_bw()+
-  theme(axis.text.x = element_text(angle = 60, hjust=1))+
-  ylab("%")+
-  xlab("Time bins")+
-  labs(fill="Indicator")+
-  ggtitle("Proportion of indicators with no/low/high food potential through time")
+upViewport(0)
+pushViewport(vplegI)
+grid.draw(legend_hln)
 
 #### FIGURE 15-----------------------------------------------
 ## trend of each indicator through time
@@ -4487,7 +3307,7 @@ reshape2::melt(Datasheet_sh.ind.time, id= "Bin_num") %>%
   theme(axis.text.x = element_text(angle = 60, hjust=1))+
   ylab("Absolute frequency")+
   xlab("Time bins")+
-  ggtitle("Number of indicators per time bin")
+  ggtitle("Trend in time for number of records where indicators found")
 
 ####FIGURE 16------------------------------------------
 ## relative frequency of indicators through time
@@ -4512,31 +3332,22 @@ reshape2::melt(Datasheet_sh.ind.time, id= "Bin_num") %>%
   theme(axis.text.x = element_text(angle = 60, hjust=1))+
   ylab("Relative frequency")+
   xlab("Time bins")+
-  ggtitle("Relative frequency of indicators per time bin")
+  ggtitle("Trend in time for proportion of sites where indicators found")
 
 #### FIGURE 17----------------------------------------
 ## map of direct indicators 
-# v_1
-Amap3+
+
+Amap+
   geom_point(data=Datasheet_sh.full.long%>%
                filter(IND=="Direct")%>%
                filter(SUM!=0),
              aes(x= Longitude, y=Latitude),color="red")+
   ggtitle("Sites with direct indicators")
 
-#v_2
-Amap4+
-   geom_point(data=Datasheet_sh.full.long%>%
-                 filter(IND=="Direct")%>%
-                 filter(SUM!=0),
-              aes(x= Longitude, y=Latitude),color="red")+
-   ggtitle("Sites with direct indicators")
-
-
 #### FIGURE 18--------------------------------------
 ## map of sites with direct indicators through time
 #v_1
-Amap3f<-ggmap (Andes3)+
+Amap1<-ggmap (Andes)+
   geom_point(data= Datasheet_sh.full.long%>%
                 filter(IND=="Direct"),
              aes(x= Longitude, y=Latitude, alpha = SUM == 0), 
@@ -4546,28 +3357,15 @@ Amap3f<-ggmap (Andes3)+
   facet_wrap(~Bin_num)+
    theme_bw()
 
-gridExtra::grid.arrange(Amap3,Amap3f, ncol=2, 
-                        top = textGrob(" Sites with direct indicators through time ",gp=gpar(fontsize=15)))
+gridExtra::grid.arrange(Amap,Amap1, ncol=2, 
+                        top = textGrob(" Sites with direct indicators through time (compared with location of all sites) ",gp=gpar(fontsize=15)))
 
-#v2
-Amap4f<-ggmap (Andes4)+
-   geom_point(data= Datasheet_sh.full.long%>%
-                 filter(IND=="Direct"),
-              aes(x= Longitude, y=Latitude, alpha = SUM == 0), 
-              color= "red")+
-   scale_alpha_manual(values = c(0.3,0)) +
-   guides(alpha = FALSE)+
-   facet_wrap(~Bin_num)+
-   theme_bw()
-   
 
-gridExtra::grid.arrange(Amap4,Amap4f, ncol=2,
-                        top = textGrob(" Sites with direct indicators through time ",gp=gpar(fontsize=15)))
 
 #### FIGURE 19-------------------------------------
 ## map of sites with direct indicators and their abundances
 ##and how changed through time
-Amap3fs<-ggmap (Andes3)+
+Amap2<-ggmap (Andes)+
    geom_point(data= Datasheet_sh.full.long%>%
                  filter(IND=="Direct"),
              aes(x= Longitude, y=Latitude, size=SUM, alpha = SUM == 0),
@@ -4575,23 +3373,25 @@ Amap3fs<-ggmap (Andes3)+
    scale_alpha_manual(values = c(0.3,0)) +
    scale_size_continuous(breaks=c(1,2,3))+
    guides(alpha = FALSE)+
+  labs(size= "Number of indicators")+
    facet_wrap (~Bin_num)+
    theme_bw()
 
-gridExtra::grid.arrange(Amap3,Amap3fs, ncol=2, 
-                        top = textGrob(" Sites with direct indicators through time ",gp=gpar(fontsize=15)))             
+gridExtra::grid.arrange(Amap,Amap2, ncol=2, 
+                        top = textGrob("Map of sites with direct indicators, displaying how many indicators found (compared with location of all sites)"
+                                       ,gp=gpar(fontsize=15)))             
 # FIGURE 20----------------------------------
 # map for  potential food indicators
-ggmap (Andes3)+
+Amap+
   geom_point (data=Datasheet_sh.pot.full.long%>%
                filter(IND=="High" & SUM!=0),
              aes(x= Longitude, y=Latitude), color="#F8766D")+
-   ggtitle("Sites with indicators with high food potential")
+   ggtitle("Sites with indicators with high food potential (compared with location of all sites)")
    
 
 # FIGURE 21-----------------------------------------------
 ## map for high potential food indicators through time
-Amap3_pf<-ggmap (Andes3)+
+Amap3<-ggmap (Andes)+
    geom_point (data=Datasheet_sh.pot.full.long%>%
                   filter(IND=="High"),
                aes(x= Longitude, y=Latitude, alpha = SUM == 0),
@@ -4602,13 +3402,13 @@ Amap3_pf<-ggmap (Andes3)+
    facet_wrap (~Bin_num)+
    theme_bw()
 
-gridExtra::grid.arrange(Amap3,Amap3_pf, ncol=2, 
-                        top = textGrob(" Sites with indicators with high food potential through time ",
+gridExtra::grid.arrange(Amap,Amap3, ncol=2, 
+                        top = textGrob(" Sites with indicators with high food potential through time (compared with location of all sites)",
                                        gp=gpar(fontsize=15)))
 
 # FIGURE 22-----------------------------------------------
 ## map for high potential food indicators through time and abundances
-Amap3_pfs<-ggmap (Andes3)+
+Amap4<-ggmap (Andes)+
    geom_point (data=Datasheet_sh.pot.full.long%>%
                   filter(IND=="High"),
                aes(x= Longitude, y=Latitude, size= SUM, alpha = SUM == 0),
@@ -4617,11 +3417,12 @@ Amap3_pfs<-ggmap (Andes3)+
    scale_alpha_manual(values = c(0.3,0))+
    scale_size_continuous(breaks=c(1,2,3))+
    guides(alpha = FALSE)+
+  labs(size= "Number of indicators")+
    facet_wrap (~Bin_num)+
    theme_bw()
 
-gridExtra::grid.arrange(Amap3,Amap3_pfs, ncol=2, 
-                        top = textGrob(" Sites with indicators with high food potential through time ",
+gridExtra::grid.arrange(Amap,Amap4, ncol=2, 
+                        top = textGrob(" Map of sites with indicators with high food potential, displaying how many indicators found per time bin (compared with location of all sites) ",
                                        gp=gpar(fontsize=15)))
 
 ## FIGURE 23--------------------------------------------
@@ -4642,8 +3443,7 @@ Datasheet_sh.full.long%>%
   geom_text(aes(label= round(Rel, digits = 2)), vjust=-0.3, size=3) +
   ylab("Relative frequency")+
   xlab("Time bins")+
-  ggtitle("Proportion of number of sites with direct indicators per time bin",
-          subtitle = "Number of sites with direct indicators in a time bin/ Number of sites covering that time bin")
+  ggtitle( "Proportion of sites with direct indicators through time")
 
 ## FIGURE 24--------------------------------------------
 
@@ -4662,5 +3462,4 @@ Datasheet_sh.pot.full.long%>%
   geom_text(aes(label= round(Rel, digits = 2)), vjust=-0.3, size=3) +
   ylab("Relative frequency")+
   xlab("Time bins")+
-  ggtitle("Proportion of number of sites with indicators with high food potential per time bin",
-          subtitle = "Number of sites with indicators with high food potential in a time bin/ Number of sites covering that time bin")
+  ggtitle("Proportion sites with indicators with high food potential through time")
