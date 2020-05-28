@@ -316,7 +316,6 @@ ggmap(Andes2)+
 ####FIGURE 2-------------------------------
 ##time span of each site
 
-
 #with Datasheet_shaved
 p02<- Datasheet_shaved %>%
   group_by(`Site Name`) %>%
@@ -565,9 +564,9 @@ p04 <-Datasheet_shaved %>%
   group_by(`Site Name`,Bin_num) %>%
   summarise(COUNT = sum(as.double(value), na.rm = T)) %>%
   mutate(Hiatus = ifelse(COUNT==0,TRUE,FALSE)) %>%
-  left_join(Sites, by="Site Name") %>%
+  left_join(Sites, by="Site Name") %>% 
   ggplot(aes(x=as.double(Bin_num), y=COUNT)) +
-  geom_line(aes(group=`Site Name`), color= "gray30")+
+  geom_line(color="gray30")+
   geom_point(data = . %>% filter(Hiatus == F), shape= 15, color="gray30", size=1)+
   geom_point(data = . %>% filter(Hiatus == T), shape= 0, color="orange", size= 1)+
   facet_wrap(~`Site Name`) +
@@ -583,19 +582,25 @@ p04
 # to color facet according to Cluster  
 p04.e <- ggplot_gtable(ggplot_build(p04))
 stripr <- which(grepl('strip-t', p04.e$layout$name))
-fills <- as.character(Sites$cluster.color)
-k <- 1
+ 
 for (i in stripr) {
   if (class(p04.e$grobs[[i]]) != "zeroGrob"){
     j <- which(grepl('rect', p04.e$grobs[[i]]$grobs[[1]]$childrenOrder))
-    p04.e$grobs[[i]]$grobs[[1]]$children[[j]]$gp$fill <- fills[k]  
-    k <- k+1
+    k <- which(grepl('title', p04.e$grobs[[i]]$grobs[[1]]$childrenOrder))
+    
+    p04.e$grobs[[i]]$grobs[[1]]$children[[j]]$gp$fill <- Sites %>% 
+      filter(`Site Name` == p04.e$grobs[[i]]$grobs[[1]]$children[[k]]$children[[1]]$label) %>%
+      dplyr::select(cluster.color) %>%
+      pluck(1) %>%
+      as.character()
   }
 }
 
 plot(p04.e)
 
 p04.e.fin <-ggarrange(p04.e, cluster_ID, nrow = 1, widths = c(10,1))
+
+p04.e.fin
 
 ggsave("figures/NEW/04.pdf",p04.e.fin,
        units = "cm", width = 25, height = 20, dpi = 600)
