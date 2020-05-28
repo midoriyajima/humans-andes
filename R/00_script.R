@@ -570,9 +570,9 @@ p04 <-Datasheet_shaved %>%
   geom_point(data = . %>% filter(Hiatus == F), shape= 15, color="gray30", size=1)+
   geom_point(data = . %>% filter(Hiatus == T), shape= 0, color="orange", size= 1)+
   facet_wrap(~`Site Name`) +
-  scale_x_continuous(trans = "reverse")+
+  scale_x_continuous(trans = "reverse", breaks = seq(to=12e3, from=0, by=2e3))+
   theme_classic() +
-  theme(axis.text.x = element_text(angle = 90, hjust=1)) +
+  theme(axis.text.x = element_text(angle = 90, hjust=1, vjust = 0.4)) +
   ylab("Absolute frequency")+
   xlab("Time (yr BC)")+
   ggtitle("Total number of indicators found per time bin per site")
