@@ -321,10 +321,10 @@ p02<- Datasheet_shaved %>%
   group_by(`Site Name`) %>%
   summarise(MIN = min(Bin_num),
             MAX = max(Bin_num)) %>%
-  left_join(.,Sites %>% dplyr::select(`Site Name`,  Altitude, cluster.id), by="Site Name") %>%
+  left_join(.,Sites %>% dplyr::select(`Site Name`,  Altitude, Latitude, cluster.id), by="Site Name") %>%
   ggplot() +
   geom_hline(yintercept = seq(from=0, to=12e3, by=500), color="gray80")+
-  geom_bar(aes(x=reorder(`Site Name`,-Altitude),y= MAX, fill=cluster.id), colour="gray30", stat = "identity")+
+  geom_bar(aes(x=reorder(`Site Name`,Latitude),y= MAX, fill=cluster.id), colour="gray30", stat = "identity")+
   scale_fill_manual(values = Color_legend_cluster)+
   theme_classic()+
   theme(axis.text.y  = element_text( hjust=1))+
@@ -461,7 +461,7 @@ all(colSums(cca.data)>0)
 decorana(cca.data)
 # first axis lengt is under 2.5 -> linear predictor -> RDA
 
-rda.1 <- rda(cca.data ~ cca.env$Bin_num + Condition(cca.env$`Site Name`), scale =T) 
+rda.1 <- rda(cca.data ~ cca.env$Bin_num + Condition(cca.env$`Site Name`), scale =F) 
 
 # summary
 smry <- summary(rda.1)
@@ -473,8 +473,8 @@ df2  <- data.frame(smry$species[,1:3]) %>% # loadings for PC1 and PC2
               rename(IND = Taxa), by= "IND") %>%
   as_tibble()
 
-x_lim = c(-0.7,0.5)
-y_lim =c(-1.6,0.5)
+x_lim = c(-0.3,0.3)
+y_lim =c(-0.55,0.25)
 
 axis_one <- "RDA1"
 axis_two <- "PC1"
@@ -494,6 +494,8 @@ rda.plot.ind.01 <- rda.plot.ind.base+
   theme(legend.position = "bottom",
         axis.title.x = element_blank(),
         axis.title.y = element_blank())
+
+rda.plot.ind.01
 
 rda.plot.ind.01.legend <- get_legend(rda.plot.ind.01)
 
@@ -558,6 +560,8 @@ ggsave("figures/NEW/03d.pdf",p03.d,
 
 #sum of indicators per time bin for each site
 
+
+
 p04 <-Datasheet_shaved %>%
   select(.,-c(names(Datasheet_shaved)[c(1:2,4:5,50:56)])) %>%
   pivot_longer(names(.)[-c(1,45)]) %>%
@@ -569,7 +573,7 @@ p04 <-Datasheet_shaved %>%
   geom_line(color="gray30")+
   geom_point(data = . %>% filter(Hiatus == F), shape= 15, color="gray30", size=1)+
   geom_point(data = . %>% filter(Hiatus == T), shape= 0, color="orange", size= 1)+
-  facet_wrap(~`Site Name`) +
+  facet_wrap(~reorder(`Site Name`,-Latitude )) +
   scale_x_continuous(trans = "reverse", breaks = seq(to=12e3, from=0, by=2e3))+
   theme_classic() +
   theme(axis.text.x = element_text(angle = 90, hjust=1, vjust = 0.4)) +
