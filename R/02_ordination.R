@@ -8,9 +8,7 @@ library(tidyverse)
 library(readxl)
 library(vegan)
 library(ggpubr)  
-library(ggpubr)
 library(cowplot)
-library(ggpubr)
 
 # Load data
 # Datasheet_shaved <- read_excel("data/Datasheet_shaved.xlsx")
@@ -74,7 +72,7 @@ df2[4,1]<-"Ama/Cheno"
 df2[20,1]<-"Fab/Leg"
 df2[22,1]<-"Gramin/Poa"
 df2[41,1]<-"Umbre/Api"
-df2[28,1]<-"Myrica"
+df2[28,1]<-"Myr/Morel"
 
 x_lim = c(-0.3,0.2)
 y_lim =c(-1,0.25)
