@@ -34,69 +34,79 @@ library(plotrix)
 
 #### Setting up dataframes (do only once)-------------------------------------------------------
 
-# adjust Datasheet
-Datasheet_original<-read_excel("data/Datasheet_original.xlsx")
+# read spreadsheet
+Datasheet_original <- read_excel("data/Datasheet_original.xlsx")
 
 
-#add Bin_num column
-Bin_num<-sub(".*\\-","",Datasheet_original$Bin)
-Bin_num<-sub("\\ BP.*","",Bin_num)
-Datasheet<-Datasheet_original%>%mutate(Bin_num=Bin_num)
-Datasheet$Bin_num<-as.numeric(Datasheet$Bin_num)
+# add Bin_num column
+Bin_num <- sub(".*\\-","",Datasheet_original$Bin)
+Bin_num <- sub("\\ BP.*","",Bin_num)
+Datasheet <- Datasheet_original %>%
+  mutate(Bin_num = Bin_num)
+Datasheet$Bin_num <- as.numeric(Datasheet$Bin_num)
 
 
 # add country, lat, long to Datasheet
-#Df with metadata for all sites (even the ones that are not in Datasheet)
+# Df with metadata for all sites (even the ones that are not in Datasheet)
 LAPD_Andes <- read_excel("data/LAPD_Andes_MY.xlsx")
-LAPD_Andes$LAPD_ID<-as.numeric(LAPD_Andes$LAPD_ID)
+LAPD_Andes$LAPD_ID <- as.numeric(LAPD_Andes$LAPD_ID)
 
-#add missing metadata to LAPD_Andes
-#altitude
+# add missing metadata to LAPD_Andes
+# altitude
 which(is.na(LAPD_Andes$Altitude))
-LAPD_Andes[72,"Altitude"]=2608 #value found in the original paper
-#latitude
-view(LAPD_Andes%>%filter(is.na(Latitude)))
-LAPD_Andes[70,"Latitude"]=4.58545
-LAPD_Andes[70,"Longitude"]=-75.19558
-LAPD_Andes[71,"Latitude"]=-0.57946
-LAPD_Andes[71,"Longitude"]=-78.24397
-LAPD_Andes[72,"Latitude"]=--00.25405
-LAPD_Andes[72,"Longitude"]=-78.01075
+LAPD_Andes[72,"Altitude"]=2608 # value found in the original paper
 
-#to check wich Sites have different names
-Sitename=distinct(Datasheet,`Site Name`)
-Nomatch<-match(Sitename$`Site Name`,LAPD_Andes$SiteName)
+# latitude
+view(LAPD_Andes%>%filter(is.na(Latitude)))
+LAPD_Andes[70,"Latitude"] = 4.58545
+LAPD_Andes[70,"Longitude"] = -75.19558
+LAPD_Andes[71,"Latitude"] = -0.57946
+LAPD_Andes[71,"Longitude"] = -78.24397
+LAPD_Andes[72,"Latitude"] = --00.25405 # WHY A DOUBLE -- HERE?
+LAPD_Andes[72,"Longitude"] = -78.01075
+
+#to check which Sites have different names
+Sitename = distinct(Datasheet,`Site Name`)
+Nomatch <- match(Sitename$`Site Name`,LAPD_Andes$SiteName)
 which(is.na(Nomatch))
-Sites_Nomatch<-Sitename[c(8,11, 14, 23, 34, 35, 38),]
+Sites_Nomatch <- Sitename[c(8,11, 14, 23, 34, 35, 38),]
 Sites_Nomatch$`Site Name`
 LAPD_Andes$SiteName
 
-#rename Datasheet Site Names according to the ones in LAPD_Andes
+# rename Datasheet Site Names according to the ones in LAPD_Andes
 to_replace<-c("Cerro Toledo",  "El Tiro\n"  , "Laguna Natosas forest", "Pedras Blancas", "Paramo de Agua Blanca III", "Paramo de pena Negra I")
 with_this<-c("Cerro Toledo CT", "El Tiro", "Lagunas Natosas Forest", "Piedras Blancas", "Agua Blanca PAB III", "Paramo de Pena Negra 1")
-Datasheet$`Site Name`<-Datasheet$`Site Name`%>%plyr::mapvalues(to_replace,with_this)
+Datasheet$`Site Name`<-Datasheet$`Site Name` %>%
+  plyr::mapvalues(to_replace,with_this)
 
-#insert correct lat, long for Pantano de Pecho
+# insert correct lat, long for Pantano de Pecho  # IS THIS WRONG IN LAPD_ANDES?
 LAPD_Andes[47,"Latitude"]= -0.20
 LAPD_Andes[47,"Longitude"]= -78.37
 
-#add columns with country, latitude and longitude to Datasheet, per each site
-Datasheet$Country<-LAPD_Andes$Country[match(Datasheet$`Site Name`,LAPD_Andes$SiteName)]
-Datasheet$Latitude<-LAPD_Andes$Latitude[match(Datasheet$`Site Name`,LAPD_Andes$SiteName)]
-Datasheet$Longitude<-LAPD_Andes$Longitude[match(Datasheet$`Site Name`,LAPD_Andes$SiteName)]
+# add columns with country, latitude and longitude to Datasheet, per each site
+Datasheet$Country <- LAPD_Andes$Country[match(Datasheet$`Site Name`,LAPD_Andes$SiteName)]
+Datasheet$Latitude <- LAPD_Andes$Latitude[match(Datasheet$`Site Name`,LAPD_Andes$SiteName)]
+Datasheet$Longitude <- LAPD_Andes$Longitude[match(Datasheet$`Site Name`,LAPD_Andes$SiteName)]
 
-#see if there something NA left, and which site it corresponds to
+# see if there something NA left, and which site it corresponds to
 view(filter(Datasheet,is.na(Country)))
 
-#save
-write_xlsx(LAPD_Andes,"LAPD_Andes_MY.xlsx")
+# save
+write_xlsx(LAPD_Andes,"data/LAPD_Andes_MY.xlsx")
+
+
+#-----------------------------------------------------------------------------
+
+
+## SELECTION OF SEQUENCES OF INTEREST
 
 #### new shorter datasheet
-#select record spanning last 12000 yr
-Datasheet_shaved<-Datasheet%>%filter(Bin_num<12500)
+# select record spanning last 12000 yr
+Datasheet_shaved <- Datasheet %>%
+  filter(Bin_num < 12500)
 
-#select only indicators actually found
-#Step 1: Filter indicators from dataset
+# select only indicators actually found
+# Step 1: Filter indicators from dataset
 Datasheet.indicators <- Datasheet %>%
    select(.,-c("LAPD_ID\n","Site Name",
                "Reference (short)","Bin", "Bin_num", "Latitude","Longitude", "Country" ))
@@ -108,67 +118,75 @@ Datasheet.indicators <- apply (Datasheet.indicators,2,
 # Step 4: Make datasheet with site vs number of times an indicator is counted  
 Datasheet.indicators <- as.data.frame(Datasheet.indicators)
 
-# calculate  the sum per human indicator
+# calculate the sum per human indicator
 DF.indicators.SUM <-data.frame(IN=apply(Datasheet.indicators, 2, 
                                         FUN = function(x) sum(x,na.rm = T)))
 DF.indicators.SUM$IN.name <- row.names(DF.indicators.SUM) %>% as.factor() 
 
-#datasheet with only indicators actually found
+# datasheet with only indicators actually found
 DF.zeros<-(DF.indicators.SUM%>%filter(IN==0)) 
 Todrop<-as.vector(DF.zeros$IN.name)
 Datasheet_shaved<-Datasheet_shaved[,!names(Datasheet_shaved)%in% Todrop]
 
-#remove charcoal (has to be analyzed separatedly)
+# remove charcoal (has to be analyzed separately)
 Datasheet_shaved$Charcoal<- NULL
 
+# add columns to Datasheet_shaved
+# records length
+length_record <- Datasheet_shaved %>% 
+  group_by(`Site Name`) %>%
+  summarise(max(Bin_num))
 
-#add columns to Datasheet_shaved
-#records lenght
-length_record<-Datasheet_shaved%>%group_by(`Site Name`)%>%summarise(max(Bin_num))
 length_record$Length<-length_record$`max(Bin_num)`
+
 Datasheet_shaved$Length<-length_record$Length[match(Datasheet_shaved$`Site Name`,
                                                     length_record$`Site Name`)]
 
 # Altitude of sites
-Datasheet_shaved$Altitude<-LAPD_Andes$Altitude[match(Datasheet_shaved$`Site Name`,
+Datasheet_shaved$Altitude <- LAPD_Andes$Altitude[match(Datasheet_shaved$`Site Name`,
                                                      LAPD_Andes$SiteName)]
+
+
 # correct other typos (found later in "Human indicators.R)
-Datasheet[558,3]<-"Giraldo-Giraldo et al, 2018"
+Datasheet[558,3]<-"Giraldo-Giraldo et al, 2018"   ## MAKE THIS CHANGE DIRECTLY IN THE GOOGLE SPREADSHEET
 Datasheet_shaved[426,3]<-"Giraldo-Giraldo et al, 2018"
+
 
 write_xlsx(Datasheet_shaved,"Datasheet_shaved.xlsx")
 write_xlsx(Datasheet,"Datasheet.xlsx")
 
+
 # Import and adjust dataframe with right indicators
 Human_indicators_original <- read_excel("data/02_Human indicators_V2.xlsx")
 
-Human_indicators<-Human_indicators_original[-c(2,8,13,14,22,25,68),]%>%
+Human_indicators<-Human_indicators_original[-c(2,8,13,14,22,25,68),] %>%
    select(c("Group (Taxa)",
             "Family",
             "Indicator",
             "Potential food source (no/low/high)",
+            # "Disturbance", # Catalina will double check this
             "North Andean fossil records? [yes/no]" ))
 
-Human_indicators[47,"Indicator"]<-"Indirect"
+Human_indicators[47,"Indicator"]<-"Indirect"  # MAKE THIS CHANGES DIRECTLY IN THE GOOGLE SPREADSHEETL
 
-colnames(Human_indicators)[4]<-"Potential food source"
+colnames(Human_indicators)[4]<-"Potential food source" # MAKE THIS CHANGES DIRECTLY IN THE GOOGLE SPREADSHEET
 
-to_replaceI<-c("HIGH","LOW","Low","NO")
-with_thisI<-c("high", "low","low", "no")
-Human_indicators$`Potential food source`<-Human_indicators$`Potential food source`%>%
+to_replaceI<-c("HIGH","LOW","Low","NO") # MAKE THIS CHANGES DIRECTLY IN THE GOOGLE SPREADSHEET
+with_thisI<-c("high", "low","low", "no") # MAKE THIS CHANGES DIRECTLY IN THE GOOGLE SPREADSHEET
+Human_indicators$`Potential food source`<- Human_indicators$`Potential food source` %>%
    plyr::mapvalues(to_replaceI,with_thisI)
 
-write_xlsx(Human_indicators,"Human_indicators.xlsx")
+write_xlsx(Human_indicators,"data/Human_indicators.xlsx")
 
 # Change Ind names in Datasheet shaved (match names in Human_indicators)
-Col.to<-pull(Human_indicators%>% 
+Col.to <- pull(Human_indicators%>% 
                 filter(`North Andean fossil records? [yes/no]`=="yes")%>%
                 select(`Group (Taxa)`))
 
-Col.from<-names(Datasheet_shaved)[5:47]
+Col.from <- names(Datasheet_shaved)[5:47]
 
 #sort Col.to in alphabetical number (to match column order in Datasheet_shaved)
-Col.to<-sort(Col.to)
+Col.to <- sort(Col.to)
 
 Datasheet_shaved<-Datasheet_shaved %>% rename_at(vars(Col.from), ~Col.to)
 
@@ -176,22 +194,45 @@ Datasheet_shaved<-Datasheet_shaved %>% rename_at(vars(Col.from), ~Col.to)
 colnames(Datasheet_shaved)[2]<-"Site Name long"
 colnames(Datasheet_shaved)[3]<-"Site Name"
 
-write_xlsx(Datasheet_shaved,"Datasheet_shaved.xlsx")
+write_xlsx(Datasheet_shaved,"data/Datasheet_shaved.xlsx")
 
+
+## this is not working here, but also no-where else used
 # df with first appearance of direct ind
-FirstInd<-Datasheet_sh.full%>%filter(Sum_direct>0)
-FirstInd<-FirstInd[with(FirstInd, order(-Bin_num)), ]
-FirstInd<-FirstInd[match(unique(FirstInd$`Site Name`), FirstInd$`Site Name`),]
+#FirstInd <- Datasheet_sh.full %>% 
+#  filter(Sum_direct>0)
+
+#FirstInd <- FirstInd[with(FirstInd, order(-Bin_num)), ]
+
+#FirstInd <- FirstInd[match(unique(FirstInd$`Site Name`), FirstInd$`Site Name`),]
 
 
-# Load dataframes adjusted----------------------
+
+
+
+### --------------------------------------------------------
+#                                                         
+#             Load adjusted dataframes
+# 
+### --------------------------------------------------------
+
+
 Datasheet <- read_excel("data/Datasheet.xlsx")
 Datasheet_shaved<-read_excel("data/Datasheet_shaved.xlsx")
 Human_indicators <- read_excel("data/Human_indicators.xlsx")
 
+Sites<-Datasheet_shaved %>% 
+  distinct(`Site Name`,Latitude,Longitude, Country, Altitude)
+
+
 view(Datasheet)
 
-####TABLE 1------------------------------------
+### --------------------------------------------------------
+#                                                         
+#                      TABLE 1                         
+#                                                         
+### --------------------------------------------------------
+
 # subset df
 ToTable<-Datasheet_shaved%>%
   distinct(`Site Name`,Country,Latitude,Longitude,`Reference (short)`)
@@ -208,24 +249,75 @@ grid.table(ToTable)
 # export toTable in excel
 write_xlsx(ToTable,"Table_01.xlsx")
 
-####FIGURE 1---------------------------------------------
-## map, version 1
 
-#subset df
-Sites<-Datasheet_shaved%>%distinct(`Site Name`,Latitude,Longitude, Country, Altitude)
+### --------------------------------------------------------
+#                                                         
+#         SITE CLUSTERING BASED ON THE GEOGRAPHY          
+#                                                         
+### ---------------------------------------------------------
+
+# set the best number of clusters based on the location and elevation (max 10) 
+clusters <- Sites %>%
+  mutate(long.s = scale(Longitude),
+         lat.s = scale(Latitude),
+         elev.s = scale(Altitude)) %>%
+  dplyr::select(long.s, lat.s, elev.s) %>%
+  NbClust(., min.nc = 3, max.nc = 10, method = "kmeans")
+
+# add the cluster definition to the Sites DF
+Sites$cluster.id <- as.factor(clusters$Best.partition)
+
+# create colors pallete for each of the cluster
+Color_legend_cluster <- brewer.pal(n = levels(Sites$cluster.id) %>% length(), name = 'Set2')
+names(Color_legend_cluster) <- levels(Sites$cluster.id)
+
+# add the color to the Site tibble
+Sites <- Sites %>%
+  left_join(.,data.frame(cluster.id = names(Color_legend_cluster), cluster.color = Color_legend_cluster), by="cluster.id")
+
+# add the color to the Datasheet_shaved tibble
+Datasheet_shaved <- Datasheet_shaved %>% 
+  left_join(.,Sites %>% 
+              dplyr::select(`Site Name`,cluster.id,cluster.color), by= "Site Name")
+
+
+
+
+### --------------------------------------------------------
+#                                                         
+#                       FIGURES          
+#                                                         
+### ---------------------------------------------------------
+
+
+#### FIGURE 1---------------------------------------------
+## map, version 1
 
 # obtain map of the area
 range(Sites$Longitude)
 range(Sites$Latitude)
-Andes<-get_stamenmap(bbox = c(left=-83,
-                              bottom=-7,
-                              right=-69, 
-                              top=11),
-                     zoom=5,maptype = "terrain-background", color="bw")
-#map
-Amap<- ggmap(Andes)+
-  geom_point(data=Sites,
-             aes(x= Longitude, y=Latitude))
+
+(Amap<-ggmap(get_stamenmap(bbox = c(left=-84,
+                                   bottom=-7,
+                                   right=-67, 
+                                   top=12),
+                          zoom=5,maptype = "terrain-background"))+
+  geom_point(data=Sites, aes(x= Longitude, 
+                             y=Latitude, 
+                             color=cluster.id, 
+                             size=Altitude))+
+  geom_point(data=Sites, aes(x= Longitude, 
+                             y=Latitude),
+             color="black", size=1)+
+  scale_color_manual(values= Color_legend_cluster)+
+  scale_size_continuous(range = c(2,6),breaks = c(seq(from=1e3, to=5e3, by =500)))+
+  guides(color=F)+
+  labs(y="Latitude",
+       x="Longitude"))
+
+
+ggsave("figures/NEW/01_v1.pdf",Amap,
+       units = "cm", width = 20, height = 30, dpi = 600)
 
 
 # version 2
@@ -242,147 +334,256 @@ ggmap(Andes2)+
             size=1, hjust=-0.1, vjust=0)
 
 
-####FIGURE 2-------------------------------
-##time span of each site
 
-#see which colours are colorblind friendly
-display.brewer.all(colorblindFriendly = TRUE)
-display.brewer.pal(n = 3, name = 'Greys')
-brewer.pal(n = 3, name = 'Greys')
 
-#with Datasheet_shaved
-p<-ggplot(Datasheet_shaved)+
-  geom_bar(aes (x=reorder(`Site Name`,Latitude),fill=Country),colour="black")+
-  scale_fill_manual(values=c("#BDBDBD","#636363","#F0F0F0"), guide= F)+
-  theme_bw()+
+#### FIGURE 2-------------------------------
+## time span of each site
+
+# with Datasheet_shaved
+p02<- Datasheet_shaved %>%
+  group_by(`Site Name`) %>%
+  summarise(MIN = min(Bin_num),
+            MAX = max(Bin_num)) %>%
+  left_join(.,Sites %>% dplyr::select(`Site Name`,  Altitude, Latitude, cluster.id), by="Site Name") %>%
+  ggplot() +
+  geom_hline(yintercept = seq(from=0, to=12e3, by=500), color="gray80")+
+  geom_bar(aes(x=reorder(`Site Name`,Latitude),y= MAX, fill=cluster.id), colour="gray30", stat = "identity")+
+  scale_fill_manual(values = Color_legend_cluster)+
+  theme_classic()+
   theme(axis.text.y  = element_text( hjust=1))+
   theme(axis.title.x = element_blank(),
         axis.text.x =element_blank(),
         axis.ticks.x =element_blank(),
         axis.title.y = element_blank())+
-  geom_text(aes(x=`Site Name`,label=Length), stat='count', hjust=-0.1, size=3)+
-  coord_flip()+
-  ggtitle("Time span of the records")
+  geom_text(aes(x=`Site Name`,y=MAX, label=MAX), stat='identity', hjust=-0.1, size=3, color="gray30")+
+  coord_flip(ylim = c(0,13e3))+
+  labs(fill = "Cluster ID")+
+  ggtitle("Time span of the records") # I want to remove all titles from the figures.
 
-g_1 <- grid.force(ggplotGrob(p))
+p02
 
-# extract legend from here, to use later in other plots
+cluster_ID <- get_legend(p02)
 
-legend<-get_legend(plot)
+p02 <- p02 + guides(fill = F)
 
-#random plot to have legend (to explain fig 1 edited later)
-df.r<-data.frame(x=1, y=2, Col="Direct indicator")
-r<-ggplot(df.r)+
-  geom_point(aes(x=x,y=y,col=Col), pch=15,cex=3 )+
-  scale_color_manual(values = "orange")+
-  labs(col="First occurrence")
+p02.fin <- ggarrange(
+  p02, cluster_ID,
+  nrow = 1, widths = c(12,1)
+)
 
-leg<-get_legend(r)
+p02.fin
 
-# plot with leg
-grid.newpage()
-vp1 <- viewport(width = 0.75, height = 0.8, x = 0.4, y = .5)
-vplegC <- viewport(width = 0.25, height = 1, x = 0.9, y = 0.6)
-vplegL<- viewport(width = 0.25, height = 1, x = 0.9, y = 0.5)
+ggsave("figures/NEW/02.pdf",p02.fin,
+       units = "cm", width = 25, height = 20, dpi = 600)
 
 
-upViewport(0)
-pushViewport(vp1)
-grid.draw(g_1)
 
-upViewport(0)
-pushViewport(vplegC)
-grid.draw(legend)
-
-upViewport(0)
-pushViewport(vplegL)
-grid.draw(leg)
 
 #### FIGURE 3 ---------------------------------
 ## number of records per time bin 
 
 # with Datasheet_shaved
-ggplot(Datasheet_shaved)+
-  geom_bar(aes(x= reorder(Datasheet_shaved$Bin,-Datasheet_shaved$Bin_num)))+
-  theme_bw()+
+(p03<- ggplot(Datasheet_shaved)+
+  geom_hline(yintercept = seq(from=0, to=40, by=5), color="gray80")+
+  geom_bar(aes(x= reorder(Bin,-Bin_num)), color="gray30", fill="gray80")+
+  theme_classic()+
   theme(axis.text.x  = element_text(angle = 70, hjust=1),
         axis.title.y = element_blank())+
   xlab("Time bins")+
-  ggtitle("Number of pollen records per time bin")+
-  geom_text(aes(x=Bin,label=..count..),stat='count',position=position_dodge(0.9),vjust=-0.2)
-  
+  ggtitle("Number of pollen records per time bin"))
+
+
+ggsave("figures/NEW/03.pdf",p03,
+       units = "cm", width = 25, height = 20, dpi = 600)
+
+
+
+
 #### FIGURE 3b ---------------------------------
 ## number of times human indicators are counted in total
 
- # select only indicators
- Datasheet_sh.indicators<-Datasheet_shaved %>%
-   select(.,-c("LAPD_ID\r\n"  ,"ShortName","Site Name","Reference (short)","Bin", "Bin_num",
-               "Latitude","Longitude", "Country","Length","Altitude" ))
- # Convert counts from character to numeric
- Datasheet_sh.indicators <- apply (Datasheet_sh.indicators,2,
-                                   FUN= function(x) as.numeric(unlist(x)))
- 
- # Make datasheet with site vs number of times an indicator is counted  
- Datasheet_sh.indicators <- as.data.frame(Datasheet_sh.indicators)
- 
- Datasheet_sh.ind.full <- bind_cols(Datasheet_shaved %>%                
-                                      select(.,c("Site Name")),
-                                      Datasheet_sh.indicators)  
- #add altitude
- Datasheet_sh.ind.full$`Site Name`<-paste(Datasheet_sh.ind.full$`Site Name`,
-                                          "(",
-                                          Datasheet_shaved$Altitude,
-                                          "masl",
-                                          ")")
- 
- # calculate number of times (i.e num of bins) taxa are found per site
- IndxSite<- reshape2::melt(Datasheet_sh.ind.full) %>%
-   group_by(`Site Name`,variable) %>%
-   summarise(Count = sum(value, na.rm = T)) 
- 
- # print 1 if taxa are found in a site (despite the number of bins where it is found) 
- IndxSite$Pres<-ifelse(IndxSite$Count==0,0,1)
- 
- ## state wich ind is direct/indirect
- IndxSite$Ind<-Human_indicators$Indicator[match(IndxSite$variable,
-                                                Human_indicators$`Group (Taxa)`)]
- 
- ##state wich ind has high, low, no food potential
- IndxSite$Pot<-Human_indicators$`Potential food source`[match(IndxSite$variable,
-                                                Human_indicators$`Group (Taxa)`)]
- 
- ## to have columns ordered by heght in graph
- # create col with sum presence of indicators (number of sites where indicators found)
- TotPres<-IndxSite%>%group_by(variable)%>%summarise(Pres=sum(Pres,na.rm = T))
- IndxSite$TotPres<-TotPres$Pres[match(IndxSite$variable,
-                                      TotPres$variable)]
- 
- 
- 
- # plot
- IndxSite%>%
-   filter(variable!="Latitude")%>%
- ggplot(aes(x=reorder(variable,TotPres),y=Pres,fill=Ind))+
-   geom_bar(stat = "identity")+
-   theme_bw()+
-   theme(axis.text.x = element_text(angle = 70, hjust=1),
-         axis.title.y = element_blank())+
-   xlab("Indicators")+
-   labs(fill="Indicator")+
-   ggtitle("Number of sites where Indicators are found")
- 
-####FIGURE 3c---------------------------------
- # as above, distinguishing for Potential source of food
- IndxSite%>%
-   filter(variable!="Latitude")%>%
-   ggplot(aes(x=reorder(variable,TotPres),y=Pres,fill=Pot))+
-   geom_bar(stat = "identity")+
-   theme_bw()+
-   theme(axis.text.x = element_text(angle = 70, hjust=1),
-         axis.title.y = element_blank())+
-   xlab("Indicators")+
-   labs(fill="Potential food source")+
-   ggtitle("Number of sites where Indicators are found") 
+# add number of sites to Human_indicators tibble
+Human_indicators <- Datasheet_shaved %>%
+  select(.,-c(names(Datasheet_shaved)[c(1:2,4:5,49:56)])) %>%
+  pivot_longer(names(.)[-1]) %>%
+  group_by(`Site Name`,name) %>%
+  summarise(COUNT = sum(as.double(value), na.rm = T),
+            PRES = ifelse(COUNT==0,0,1)) %>%
+  ungroup() %>%
+  group_by(name) %>%
+  summarise(N.SITES = sum(PRES)) %>%
+  left_join(., Human_indicators, by=c("name"="Group (Taxa)")) %>%
+  rename("Taxa" = name,
+         "PotentionalFoodSource" = `Potential food source`,
+         "fossilRecords" = `North Andean fossil records? [yes/no]`)
+
+# plot
+(p03b<- Human_indicators %>%
+  ggplot(aes(x=reorder(Taxa,N.SITES),y=N.SITES,fill=Indicator)) +
+  geom_hline(yintercept = seq(from=0,to=40,by=10), color="gray80") +
+  geom_bar(stat = "identity", color="gray30") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 70, hjust=1),
+        axis.title.y = element_blank(),
+        axis.title.x = element_blank()) +
+  xlab("Indicators") +
+  labs(fill="Indicator") +
+  ggtitle("Number of pollen records where Indicators are found"))
+
+ggsave("figures/NEW/03b.pdf",p03b,
+       units = "cm", width = 25, height = 20, dpi = 600)
+
+#### FIGURE 3c---------------------------------
+# as above, distinguishing for Potential source of food
+
+p03c<- Human_indicators%>%
+  ggplot(aes(x=reorder(Taxa,N.SITES),y=N.SITES,fill=PotentionalFoodSource))+
+  geom_hline(yintercept = seq(from=0,to=40,by=10), color="gray80")+
+  geom_bar(stat = "identity", color="gray30")+
+  theme_classic()+
+  theme(axis.text.x = element_text(angle = 70, hjust=1),
+        axis.title.y = element_blank(),
+        axis.title.x = element_blank())+
+  xlab("Indicators")+
+  labs(fill="Potentional food source")+
+  ggtitle("Number of pollen records where Indicators are found")
+
+p03c
+
+ggsave("figures/NEW/03c.pdf",p03c,
+       units = "cm", width = 25, height = 20, dpi = 600)
+
+
+#### FIGURE 3d---------------------------------
+# ORDINATION
+
+# select only indicator data and turn ten into numbers
+# and replace all missing values with zeros ( compositional data cannot have NA)
+cca.data <-  Datasheet_shaved %>% 
+  dplyr::select(-names(Datasheet_shaved)[c(1:5,49:56)]) %>%
+  apply(., 2, FUN= function(x){
+    x[x=="NA"] <-0;
+    y<- as.numeric(x);
+    return(y)
+  })  
+
+#add row names
+row.names(cca.data) <- Datasheet_shaved$`Site Name`
+
+# select enviromrntal values (time)
+cca.env <- Datasheet_shaved %>%
+  select(c("Bin_num","Site Name"))
+
+# subset the data to exclude rows and cols with SUM = 0
+cca.env <- cca.env[rowSums(cca.data, na.rm = T) != 0, ]
+cca.data <- cca.data[rowSums(cca.data, na.rm = T) != 0, colSums(cca.data, na.rm = T) != 0]
+
+# check if everything is OK
+all(rowSums(cca.data)>0)
+all(colSums(cca.data)>0)
+
+# the data is in binary so lineral prediction is better. But just for sure
+# DCA on data
+decorana(cca.data)
+# first axis length is under 2.5 -> linear predictor -> RDA
+
+rda.1 <- rda(cca.data ~ cca.env$Bin_num + Condition(cca.env$`Site Name`), scale =F) 
+
+# summary
+smry <- summary(rda.1)
+
+df2  <- data.frame(smry$species[,1:3]) %>% # loadings for PC1 and PC2
+  rownames_to_column() %>%
+  rename(IND = rowname) %>%
+  left_join(.,Human_indicators %>%
+              rename(IND = Taxa), by= "IND") %>%
+  as_tibble()
+
+x_lim = c(-0.3,0.3)
+y_lim =c(-0.55,0.25)
+
+axis_one <- "RDA1"
+axis_two <- "PC1"
+
+rda.plot.ind.base <- ggplot(df2, aes(x=0, xend=get(axis_one), y=0, yend=get(axis_two)))+
+  geom_hline(yintercept=0, linetype="dotted") +
+  geom_vline(xintercept=0, linetype="dotted") +
+  coord_fixed(xlim= x_lim, ylim = y_lim)+ 
+  theme_classic()
+
+rda.plot.ind.01 <- rda.plot.ind.base+
+  geom_segment(arrow=arrow(length=unit(0.01,"npc")), aes(color=Indicator)) +
+  geom_text(data=df2,check_overlap = T,
+            aes(x=get(axis_one),y=get(axis_two),label=IND,color=Indicator,
+                hjust=0.5*(1-sign(get(axis_one))),vjust=0.5*(1-sign(get(axis_two)))), size=4)+
+  labs(x="axis one",y="axis two")+
+  theme(legend.position = "bottom",
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank())
+
+rda.plot.ind.01
+
+rda.plot.ind.01.legend <- get_legend(rda.plot.ind.01)
+
+rda.plot.ind.02 <- rda.plot.ind.base+
+  geom_segment(arrow=arrow(length=unit(0.01,"npc")), aes(color=Family)) +
+  geom_text(data=df2,check_overlap = T,
+            aes(x=get(axis_one),y=get(axis_two),label=IND,color=Family,
+                hjust=0.5*(1-sign(get(axis_one))),vjust=0.5*(1-sign(get(axis_two)))), size=4)+
+  labs(x="axis one",y="axis two")+
+  theme(legend.position = "bottom",
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank())
+
+rda.plot.ind.02.legend <- get_legend(rda.plot.ind.02)
+
+rda.plot.ind.03 <- rda.plot.ind.base+
+  geom_segment(arrow=arrow(length=unit(0.01,"npc")), aes(color=PotentionalFoodSource)) +
+  geom_text(data=df2,check_overlap = T,
+            aes(x=get(axis_one),y=get(axis_two),label=IND,color=PotentionalFoodSource,
+                hjust=0.5*(1-sign(get(axis_one))),vjust=0.5*(1-sign(get(axis_two)))), size=4)+
+  labs(x="axis one",y="axis two")+
+  theme(legend.position = "bottom",
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank())
+
+rda.plot.ind.03.legend <- get_legend(rda.plot.ind.03)
+
+rda.plot.ind.sum <- ggarrange(
+  rda.plot.ind.01+guides(color=F),
+  rda.plot.ind.02+guides(color=F),
+  rda.plot.ind.03+guides(color=F),
+  nrow=1, align = "h", labels = c("A","B","C")
+)
+
+
+rda.plot.ind.sum <- annotate_figure(rda.plot.ind.sum,left = "second axis",bottom="first axis")
+
+rda.plot.ind.legend <- ggarrange(
+  rda.plot.ind.01.legend,
+  rda.plot.ind.03.legend,
+  nrow = 1
+)
+
+
+p03.d <- ggarrange(rda.plot.ind.sum,
+                   rda.plot.ind.legend,
+                   rda.plot.ind.02.legend,
+                   ncol = 1, heights = c(15,1,5))
+
+p03.d
+
+ggsave("figures/NEW/03d.pdf",p03.d,
+       units = "cm", width = 25, height = 20, dpi = 600)
+
+# A = colored by direct/indirect
+# B = colored by the Family
+# C = colored by Potentional food source 
+
+
+
+
+
    
 #### FIGURE 4 --------------------------------
  ## trend of total human indicators through time per site
@@ -391,7 +592,7 @@ ggplot(Datasheet_shaved)+
  DF_sh.tot<-data.frame(Sum_total=apply(Datasheet_sh.indicators,1,
                                        FUN = function(x) sum(x,na.rm = T)))
  
- Datasheet_sh.full<- bind_cols(Datasheet_shaved,DF_sh.tot)
+Datasheet_sh.full<- bind_cols(Datasheet_shaved,DF_sh.tot)
  
 # new column for labels
 Datasheet_sh.full$ForLabs<-Datasheet_sh.full$Sum_total
@@ -399,7 +600,7 @@ Datasheet_sh.full$ForLabs<-Datasheet_sh.full$Sum_total
 Datasheet_sh.full$ForLabs[Datasheet_sh.full$ForLabs==0]<-"H"
 Datasheet_sh.full[123:124,"ForLabs"]<-"0"
 
-#add altitulde to site names
+#add altitude to site names
 Datasheet_sh.full$`Site Name`<-paste(Datasheet_sh.full$`Site Name`,"(",Datasheet_sh.full$Altitude, "masl",")")
 
 # sites ordered according to lat, to sort facets in plot
@@ -490,6 +691,68 @@ upViewport(0)
 pushViewport(vplegL)
 grid.draw(legend_l)
 
+
+
+
+
+
+
+#### FIGURE 4 --------------------------------
+## trend of total human indicators through time per site
+
+#sum of indicators per time bin for each site
+
+(p04 <-Datasheet_shaved %>%
+  select(.,-c(names(Datasheet_shaved)[c(1:2,4:5,50:56)])) %>%
+  pivot_longer(names(.)[-c(1,45)]) %>%
+  group_by(`Site Name`,Bin_num) %>%
+  summarise(COUNT = sum(as.double(value), na.rm = T)) %>%
+  mutate(Hiatus = ifelse(COUNT==0,TRUE,FALSE)) %>%
+  left_join(Sites, by="Site Name") %>% 
+  ggplot(aes(x=as.double(Bin_num), y=COUNT)) +
+  geom_line(color="gray30")+
+  geom_point(data = . %>% filter(Hiatus == F), shape= 15, color="gray30", size=1)+
+  geom_point(data = . %>% filter(Hiatus == T), shape= 0, color="orange", size= 1)+
+  facet_wrap(~reorder(`Site Name`,-Latitude )) +
+  scale_x_continuous(trans = "reverse", breaks = seq(to=12e3, from=0, by=2e3))+
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 90, hjust=1, vjust = 0.4)) +
+  ylab("Absolute frequency")+
+  xlab("Time (yr BC)")+
+  ggtitle("Total number of indicators found per time bin per site"))
+
+ 
+
+# to color facet according to Cluster  
+p04.e <- ggplot_gtable(ggplot_build(p04))
+stripr <- which(grepl('strip-t', p04.e$layout$name))
+
+for (i in stripr) {
+  if (class(p04.e$grobs[[i]]) != "zeroGrob"){
+    j <- which(grepl('rect', p04.e$grobs[[i]]$grobs[[1]]$childrenOrder))
+    k <- which(grepl('title', p04.e$grobs[[i]]$grobs[[1]]$childrenOrder))
+    
+    p04.e$grobs[[i]]$grobs[[1]]$children[[j]]$gp$fill <- Sites %>% 
+      filter(`Site Name` == p04.e$grobs[[i]]$grobs[[1]]$children[[k]]$children[[1]]$label) %>%
+      dplyr::select(cluster.color) %>%
+      pluck(1) %>%
+      as.character()
+  }
+}
+
+plot(p04.e)
+
+p04.e.fin <-ggarrange(p04.e, cluster_ID, nrow = 1, widths = c(10,1))
+
+p04.e.fin
+
+ggsave("figures/NEW/04.pdf",p04.e.fin,
+       units = "cm", width = 25, height = 20, dpi = 600)
+
+
+
+
+
 #### FIGURE 5 (discarded, hard to read) ---------------------------------
 ## number of times human indicators are counted in each site
    
@@ -558,6 +821,8 @@ grid.draw(legend_l)
  upViewport(0)
  pushViewport(vplegC)
  grid.draw(legend)
+ 
+ 
  
  #### FIGURE 5b( discarded, hard to read)--------------------------------------
  # distinguish between direct and indirect
