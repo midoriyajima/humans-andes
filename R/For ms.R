@@ -55,3 +55,140 @@ Span$tot<-tot$n[match( Span$Var1, tot$MAX)]
 Span[17:24,]%>%summarise(perc=sum(tot, na.rm = T)/38)
 Span[9:16,]%>%summarise(perc=sum(tot, na.rm = T)/38)
 Span[1:8,]%>%summarise(perc=sum(tot, na.rm = T)/38)
+
+# same for each cluster
+Datasheet_shaved%>%
+  filter(cluster.id_2==1)%>%
+  distinct(`Site Name`, Altitude)
+
+Datasheet_shaved%>%
+  filter(cluster.id_2==2)%>%
+  distinct(`Site Name`, Altitude)
+
+Datasheet_shaved%>%
+  filter(cluster.id_2==3)%>%
+  distinct(`Site Name`, Altitude)
+
+Datasheet_shaved%>%
+  filter(cluster.id_2==4)%>%
+  distinct(`Site Name`, Altitude)%>%
+  count(Altitude %in% 2000:3000)
+
+Datasheet_shaved%>%
+  filter(cluster.id_2==4)%>%
+  distinct(`Site Name`, Altitude)%>%
+  count(Altitude %in% 3000:4215)
+
+tot1<-Datasheet_shaved %>%
+  filter(cluster.id_2==4)%>%
+  group_by(`Site Name`) %>%
+  summarise(MIN = min(Bin_num),
+            MAX = max(Bin_num))%>%
+  count(MAX)
+
+
+
+##Indicators
+View(Human_indicators_original[-c(2,8,13,14,22,68),])
+
+Human_indicators_original[-c(2,8,13,14,22,68),] %>%
+  filter(Indicator=="Direct")
+
+Human_indicators_original[-c(2,8,13,14,22,68),] %>%
+  filter(`Potential food source (no/low/high)`=="HIGH")
+
+Human_indicators_original[-c(2,8,13,14,22,68),] %>%
+  filter(`Potential food source (no/low/high)` %in% c("LOW", "Low"))
+
+Human_indicators_original[-c(2,8,13,14,22,68),] %>%
+  filter(`Potential food source (no/low/high)` %in% c("NO", "no"))
+
+Human_indicators%>%
+  filter(Indicator=="Direct")
+ 
+Human_indicators%>%
+  filter(PotentionalFoodSource=="high")
+
+Human_indicators%>%
+  filter(PotentionalFoodSource=="low")
+
+Human_indicators%>%
+  filter(PotentionalFoodSource=="no")
+
+# Direct indicators
+View(Datasheet_sh.full.long%>%
+       filter(IND == "Direct" & SUM>0)%>%
+       select(c("Manihot",
+                "Pinus",
+                "Eucalyptus",
+                "Phaseolus",
+                "Zea mays",
+                "Site Name",
+                "SUM",
+                "Bin")))
+
+Datasheet_sh.full.long%>%
+  mutate(clust.id= Datasheet_shaved$cluster.id_2
+              [match(`Site Name long`, Datasheet_shaved$`Site Name long`)])%>%
+  filter(IND == "Direct" & SUM>0 & clust.id == 4)%>%
+    distinct(`Site Name long`)
+
+Datasheet_sh.full.long%>%
+  mutate(clust.id= Datasheet_shaved$cluster.id_2
+         [match(`Site Name long`, Datasheet_shaved$`Site Name long`)])%>% 
+  filter(clust.id == 3)%>%distinct(`Site Name long`)
+
+#high food pot
+dat%>%
+  mutate (Pot=Human_indicators$PotentionalFoodSource
+          [match(variable,Human_indicators$Taxa)])%>%
+  filter(Pot=="high")%>%
+  mutate(Pres=ifelse(Count>0,1,0))%>%
+  summarise(Count=sum(Pres))
+
+dat%>%
+  mutate (Pot=Human_indicators$PotentionalFoodSource
+          [match(variable,Human_indicators$Taxa)])%>%
+  filter(Pot=="high"& cluster.id==4)%>%
+  mutate(Pres=ifelse(Count>0,1,0))%>%
+  summarise(Count=sum(Pres))
+
+View(Datasheet_sh.pot.full.long%>%
+       filter(IND == "High" & SUM>0)%>%
+  select(c( "Amaranthceae/ Chenopodiaceae (Ama/Cheno)",
+            "Annonaceae",
+            "Arecaceae",
+            "Convolvulaceae" ,
+            "Fabaceae/Leguminosa" ,
+            "Lupinus"  ,
+            "Manihot",
+            "Oxalidaceae",
+            "Phaseolus",
+            "Sapotaceae",
+            "Solanaceae",
+            "Umbelliferae/Apiaceae",
+            "Zea mays" ,
+            "Site Name",
+            "SUM",
+            "Bin_num")))
+
+View(Datasheet_sh.pot.full.long%>%
+       filter(IND == "High" & SUM>0)%>%
+       select(c("Annonaceae",
+                 "Arecaceae",
+                 "Manihot",
+                 "Oxalidaceae",
+                 "Phaseolus",
+                 "Sapotaceae",
+                 "Zea mays" ,
+                 "Site Name",
+                 "SUM",
+                 "Bin_num")))
+
+# low food
+dat%>%
+  mutate (Pot=Human_indicators$PotentionalFoodSource
+          [match(variable,Human_indicators$Taxa)])%>%
+  filter(Pot=="high")%>%
+  mutate(Pres=ifelse(Count>0,1,0))%>%
+  summarise(Count=sum(Pres))

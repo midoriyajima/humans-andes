@@ -80,15 +80,17 @@ cca.env$ZONE <- replace(cca.env$ZONE, cca.env$ZONE==2,1)
 cca.env$ZONE <- as.factor(cca.env$ZONE)
 
 # add the Site info
+Sites_2<-read_excel("data/Sites_2.xlsx")
+
 cca.env <- cca.env %>%
-  left_join(Sites, by= "Site Name")
+  left_join(Sites_2, by= "Site Name")
 
 cca.env<- cca.env %>%
   group_by(`Site Name`) %>%
   mutate(ORDER = mean(as.double(ZONE)*mean(Bin_num), na.rm = T))
 
 cca.env$`Site Name` <- as.factor(cca.env$`Site Name`)
-cca.env$`Site Name`<- reorder(cca.env$`Site Name` , -cca.env$ORDER)
+cca.env$`Site Name`<- reorder(cca.env$`Site Name` , cca.env$Latitude)
 
 
 # --------------------------------------------------------------- 
@@ -101,7 +103,7 @@ cca.env$`Site Name`<- reorder(cca.env$`Site Name` , -cca.env$ORDER)
 cca.env %>%
   ggplot(aes(x=Bin_num,y=`Site Name`))+
   geom_line(color="gray80")+
-  geom_point(aes(shape= ZONE),color=cca.env$cluster.color)+
+  geom_point(aes(shape= ZONE),color=cca.env$cluster.color_2, size=6)+
   scale_shape_manual(values = c(1,15))+
   theme_classic()+
   labs(x="Age",

@@ -111,6 +111,8 @@ write_xlsx(LAPD_Andes,"data/LAPD_Andes_MY.xlsx")
 Datasheet_shaved <- Datasheet %>%
   filter(Bin_num < 12500)
 
+Datasheet_sh_charcoal <- Datasheet %>%
+  filter(Bin_num < 12500)
 # select only indicators actually found
 # Step 1: Filter indicators from dataset
 Datasheet.indicators <- Datasheet %>%
@@ -134,6 +136,7 @@ DF.zeros<-(DF.indicators.SUM%>%filter(IN==0))
 Todrop<-as.vector(DF.zeros$IN.name)
 Datasheet_shaved<-Datasheet_shaved[,!names(Datasheet_shaved)%in% Todrop]
 
+Datasheet_sh_charcoal<-Datasheet_sh_charcoal[,!names(Datasheet_sh_charcoal)%in% Todrop]
 # remove charcoal (has to be analyzed separately)
 Datasheet_shaved$Charcoal<- NULL
 
@@ -154,7 +157,7 @@ Datasheet_shaved$Altitude <- LAPD_Andes$Altitude[match(Datasheet_shaved$`Site Na
 
 
 # correct other typos (found later in "Human indicators.R)
-Datasheet[558,3]<-"Giraldo-Giraldo et al, 2018"   ## MAKE THIS CHANGE DIRECTLY IN THE GOOGLE SPREADSHEET-----------
+Datasheet[558,3]<-"Giraldo-Giraldo et al, 2018"   
 Datasheet_shaved[426,3]<-"Giraldo-Giraldo et al, 2018"
 
 
@@ -170,19 +173,37 @@ Human_indicators<-Human_indicators_original[-c(2,8,13,14,22,25,68),] %>%
             "Family",
             "Indicator",
             "Potential food source (no/low/high)",
-            # "Disturbance", # Catalina will double check this
+            "Disturbance", # Catalina will double check this
             "North Andean fossil records? [yes/no]" ))
 
-Human_indicators[47,"Indicator"]<-"Indirect"  # MAKE THIS CHANGES DIRECTLY IN THE GOOGLE SPREADSHEETL
+Human_indicators[47,"Indicator"]<-"Indirect"  
 
-colnames(Human_indicators)[4]<-"Potential food source" # MAKE THIS CHANGES DIRECTLY IN THE GOOGLE SPREADSHEET
+colnames(Human_indicators)[4]<-"Potential food source" 
 
-to_replaceI<-c("HIGH","LOW","Low","NO") # MAKE THIS CHANGES DIRECTLY IN THE GOOGLE SPREADSHEET
-with_thisI<-c("high", "low","low", "no") # MAKE THIS CHANGES DIRECTLY IN THE GOOGLE SPREADSHEET
+to_replaceI<-c("HIGH","LOW","Low","NO") 
+with_thisI<-c("high", "low","low", "no") 
 Human_indicators$`Potential food source`<- Human_indicators$`Potential food source` %>%
    plyr::mapvalues(to_replaceI,with_thisI)
 
 write_xlsx(Human_indicators,"data/Human_indicators.xlsx")
+
+# human indicators with charcoal
+Human_indicators2<-Human_indicators_original[-c(2,8,13,14,22,68),] %>%
+  select(c("Group (Taxa)",
+           "Family",
+           "Indicator",
+           "Potential food source (no/low/high)",
+           "Disturbance", # Catalina will double check this
+           "North Andean fossil records? [yes/no]" ))
+
+Human_indicators2[48,"Indicator"]<-"Indirect"  
+
+colnames(Human_indicators2)[4]<-"Potential food source" 
+
+to_replaceI<-c("HIGH","LOW","Low","NO") 
+with_thisI<-c("high", "low","low", "no") 
+Human_indicators2$`Potential food source`<- Human_indicators2$`Potential food source` %>%
+  plyr::mapvalues(to_replaceI,with_thisI)
 
 # Change Ind names in Datasheet shaved (match names in Human_indicators)
 Col.to <- pull(Human_indicators%>% 
@@ -283,12 +304,15 @@ colnames(Sites)[8]<-"cluster.id_2"
 Sites$cluster.id_2<- as.factor(Sites$cluster.id_2)
 
 # create colors pallete for each of the cluster
-Color_legend_cluster <- brewer.pal(n = levels(Sites$cluster.id_2) %>% length(), name = 'Greys') #others: Greens, Oranges, Greys
 names(Color_legend_cluster) <- levels(Sites$cluster.id_2)
+Color_legend_cluster <- brewer.pal(n = levels(Sites$cluster.id_2) %>% length(), name = 'Set2') 
 
 # add the color to the Site tibble
 Sites <- Sites %>%
   left_join(.,data.frame(cluster.id_2 = names(Color_legend_cluster), cluster.color_2 = Color_legend_cluster), by="cluster.id_2")
+
+#export site
+write_xlsx(Sites,"data/Sites_2.xlsx")
 
 # add the color to the Datasheet_shaved tibble
 Datasheet_shaved <- Datasheet_shaved %>% 
@@ -332,6 +356,21 @@ Amap2<-ggmap(Andes2)+
        x="Longitude",
        size="Elevation")
 
+#version 3
+bbox = c(left=-84,
+         bottom=-7,
+         right=-67, 
+         top=12)
+
+Andes3<-get_map(location = bbox, source = "google", maptype = "terrain")
+plot(Andes3)
+
+#version 4
+Andes4<-getMap(resolution = "coarse")
+plot(Andes4, xlim=c(-84,-67), ylim=c(12,-7))
+
+#version 5
+study_area<-map_data("world")
 
 #### FIGURE 2-------------------------------
 ## time span of each site
@@ -341,10 +380,10 @@ p02<- Datasheet_shaved %>%
   group_by(`Site Name`) %>%
   summarise(MIN = min(Bin_num),
             MAX = max(Bin_num)) %>%
-  left_join(.,Sites %>% dplyr::select(`Site Name`,  Altitude, Latitude, cluster.id), by="Site Name") %>%
+  left_join(.,Sites %>% dplyr::select(`Site Name`,  Altitude, Latitude, cluster.id_2), by="Site Name") %>%
   ggplot() +
   geom_hline(yintercept = seq(from=0, to=12e3, by=500), color="gray80")+
-  geom_bar(aes(x=reorder(`Site Name`,Latitude),y= MAX, fill=cluster.id), colour="gray30", stat = "identity")+
+  geom_bar(aes(x=reorder(`Site Name`,Latitude),y= MAX, fill=cluster.id_2), colour="gray30", stat = "identity")+
   scale_fill_manual(values = Color_legend_cluster)+
   theme_classic()+
   theme(axis.text.y  = element_text( hjust=1))+
@@ -354,9 +393,8 @@ p02<- Datasheet_shaved %>%
         axis.title.y = element_blank())+
   geom_text(aes(x=`Site Name`,y=MAX, label=MAX), stat='identity', hjust=-0.1, size=3, color="gray30")+
   coord_flip(ylim = c(0,13e3))+
-  labs(fill = "Cluster ID")+
-  ggtitle("Time span of the records") # I want to remove all titles from the figures.
-
+  labs(fill = "Cluster ID")
+  
 p02
 
 cluster_ID <- get_legend(p02)
@@ -417,6 +455,7 @@ Human_indicators <- Datasheet_shaved %>%
 (p03b<- Human_indicators %>%
   ggplot(aes(x=reorder(Taxa,N.SITES),y=N.SITES,fill=Indicator)) +
   geom_bar(stat = "identity", color="gray30") +
+  scale_fill_manual(values = my_colors_ind)+
   theme_classic() +
   theme(axis.text.x = element_text(angle = 70, hjust=1),
         axis.title.y = element_blank(),
@@ -430,12 +469,10 @@ ggsave("figures/NEW/03b.pdf",p03b,
 #### FIGURE 3c---------------------------------
 # as above, distinguishing for Potential source of food
 
-my_colors<-RColorBrewer::brewer.pal(11,"RdBu")[c(11,10,9)]
-
 p03c<- Human_indicators%>%
   ggplot(aes(x=reorder(Taxa,N.SITES),y=N.SITES,fill=PotentionalFoodSource))+
   geom_bar(stat = "identity", color="gray30")+
-  scale_fill_manual(values=my_colors)+
+  scale_fill_manual(values=my_colors_food)+
   theme_classic()+
   theme(axis.text.x = element_text(angle = 70, hjust=1),
         axis.title.y = element_blank(),
@@ -500,7 +537,8 @@ y_lim =c(-1,0.25)
 axis_one <- "RDA1"
 axis_two <- "PC1"
 
-my_colors<-RColorBrewer::brewer.pal(11,"RdBu")[c(11,10,9)]
+my_colors_ind<-c("#DC143C","#FFFFFF")
+my_colors_food<-c("#053061", "#2166AC", "#A9A9A9")
 
 #short name for some of the indicators
 df2[4,1]<-"Ama/Cheno"
@@ -518,8 +556,11 @@ rda.plot.ind.base <- ggplot(df2, aes(x=0, xend=get(axis_one), y=0, yend=get(axis
 rda.plot.ind.01 <- rda.plot.ind.base+
   geom_segment(arrow=arrow(length=unit(0.01,"npc")), aes(color=Indicator)) +
   geom_text(data=df2,check_overlap = F,
-            aes(x=get(axis_one),y=get(axis_two),label=IND,color=Indicator,
-                hjust=0.5*(1-sign(get(axis_one))),vjust=0.5*(1-sign(get(axis_two)))), size=4)+
+            aes(x=get(axis_one),y=get(axis_two),
+                label=IND,color=Indicator,
+                hjust=0.5*(1-sign(get(axis_one))),
+                vjust=0.5*(1-sign(get(axis_two)))), size=4)+
+  scale_color_manual(values=c("#DC143C","#"))+
   labs(x="axis one",y="axis two")+
   theme(legend.position = "bottom",
         axis.title.x = element_blank(),
@@ -534,7 +575,7 @@ rda.plot.ind.03 <- rda.plot.ind.base+
   geom_text(data=df2,check_overlap = F,
             aes(x=get(axis_one),y=get(axis_two),label=IND,color=PotentionalFoodSource,
                 hjust=0.5*(1-sign(get(axis_one))),vjust=0.5*(1-sign(get(axis_two)))), size=4)+
-    scale_color_manual(values= my_colors)+
+    scale_color_manual(values= my_colors_food)+
   labs(x="axis one",y="axis two", color= "Food potential")+
   theme(legend.position = "bottom",
         axis.title.x = element_blank(),
@@ -570,7 +611,7 @@ p03.d <- ggarrange(rda.plot.ind.sum,
 
 p03.d
 
-ggsave("figures/o use/26_ordination.pdf",p03.d,
+ggsave("figures/To use/26_ordination.pdf",p03.d,
        units = "cm", width = 25, height = 20, dpi = 600)
 
 # A = colored by direct/indirect
@@ -1887,14 +1928,14 @@ p<-dat %>%
    mutate (Ind=Human_indicators$Indicator
                   [match(variable,Human_indicators$Taxa)])%>%
    filter(Ind=="Direct" & variable != "Zea mays") %>%
-   ggplot(aes(x=reorder(`Site Num`,desc(`Site Num`)), y=Count, fill= Country))+
-   scale_fill_manual(values = c("#BDBDBD","#636363","#F0F0F0"), guide=F)+
+   ggplot(aes(x=reorder(`Site Num`,desc(`Site Num`)), y=Count, fill= cluster.id))+
+   scale_fill_manual(values = Color_legend_cluster, guide=F)+
    geom_bar(stat = "identity",colour="black")+
   coord_flip()+
    facet_wrap(~variable, nrow = 1)+
    theme_classic()+
    theme(axis.text.x = element_text( hjust=1))+
-  labs(x="Site",
+  labs(x="Record",
        y="Number of time bins")
 
 ggsave("figures/To use/07_Direct(1).pdf",p,
@@ -1904,14 +1945,14 @@ p<-dat %>%
   mutate (Ind=Human_indicators$Indicator
           [match(variable,Human_indicators$Taxa)])%>%
   filter(variable == "Zea mays") %>%
-  ggplot(aes(x=reorder(`Site Num`,desc(`Site Num`)), y=Count, fill= Country))+
-  scale_fill_manual(values = c("#BDBDBD","#636363","#F0F0F0"), guide=F)+
+  ggplot(aes(x=reorder(`Site Num`,desc(`Site Num`)), y=Count, fill= cluster.id))+
+  scale_fill_manual( values = Color_legend_cluster, guide=F)+
   geom_bar(stat = "identity",colour="black")+
   coord_flip()+
   facet_wrap(~variable, nrow = 1)+
   theme_classic()+
   theme(axis.text.x = element_text( hjust=1))+
-  labs(x="Site",
+  labs(x="Record",
        y="Number of time bins")
 
 ggsave("figures/To use/07_Direct(2).pdf",p,
@@ -1958,18 +1999,21 @@ grid.draw(legend)
 
 p<-dat %>%
   mutate (Ind=Human_indicators$Indicator
-          [match(variable,Human_indicators$`Group (Taxa)`)])%>%
+          [match(variable,Human_indicators$Taxa)])%>%
    filter(Ind=="Indirect") %>%
-   ggplot(aes(x=`Site Num`, y=Count, fill= Country))+
-   scale_fill_manual(values = c("#BDBDBD","#636363","#F0F0F0"), guide=F)+
-   geom_bar(stat = "identity",colour="black")+
+   ggplot(aes(x=`Site Num`, y=Count, fill= cluster.id))+
+   scale_fill_manual(values = Color_legend_cluster, guide=F)+
+   geom_bar(stat = "identity",color="gray30")+
    facet_wrap(~variable)+
-   theme_bw()+
-  labs(x="Site")+
-   theme(axis.text.x = element_text(angle = 60, hjust=1))+
-   ggtitle("Number of bins indirect indicators are found per site")
+  coord_flip()+
+   theme_classic()+
+  labs(x="Record",
+       y="Number of time bins")+
+   theme(axis.text.x = element_text(hjust=1))
 
-g_1 <- grid.force(ggplotGrob(p)) 
+ggsave("figures/To use/07_Indirect.pdf",p,
+       units = "cm", width = 25, height = 20, dpi = 600)
+
 
 
 #do the same as fig 6, with plot and table from fig 7 and legend from fig 2
@@ -2006,10 +2050,10 @@ p<- dat%>%
    scale_fill_manual(values = Color_legend_cluster, guide=F)+
    geom_bar(stat = "identity",colour="black")+
   coord_flip()+
-   facet_wrap(~reorder(var_di,Ind_ord))+
+   facet_wrap(~reorder(var_di,Ind_ord), nrow =2)+
    theme_classic()+
    theme(axis.text.x = element_text(hjust=1))+
-  labs(x="Site",
+  labs(x="Record",
        y="Number of time bins")
 
 g_1 <- grid.force(ggplotGrob(p)) 
@@ -2031,9 +2075,8 @@ strip_txt_gpath <- grobs_df$gPath_full[grepl(pattern = "strip.*titleGrob.*text.*
 
 
 
-fills <-  c(rep("#2166AC",5),
-            rep("#053061",3),
-            rep("#2166AC",2),
+fills <-  c(rep("#053061",3),
+            rep("#2166AC",7),
             rep("#053061",10)) # vector of colors to fill rectangles
             
 
@@ -2109,6 +2152,43 @@ upViewport(0)
 pushViewport(vplegC)
 grid.draw(legend)
 
+#### FIGURE 7_disturbance---------------------------------------
+Datasheet_sh.ind.full2<-Datasheet_sh.ind.full%>% 
+  mutate(Charcoal=Datasheet_sh_charcoal$Charcoal)
+
+Datasheet_sh.ind.full2$Charcoal<-as.numeric(Datasheet_sh.ind.full2$Charcoal)
+
+dat2<-reshape2::melt(Datasheet_sh.ind.full2 %>%
+  select(-c("Latitude"))) %>%
+  group_by(variable,`Site Name`) %>%
+  summarise(Count = sum(value, na.rm = T)) %>%
+  mutate (Country=Datasheet_sh.full$Country
+          [match(`Site Name`, Datasheet_sh.full$`Site Name`)],
+          Latitude=Datasheet_sh.full$Latitude
+          [match(`Site Name`, Datasheet_sh.full$`Site Name`)],
+          cluster.id=Datasheet_sh.full$Cluster.id_2
+          [match(`Site Name`, Datasheet_sh.full$`Site Name`)],
+          cluster.col=Datasheet_sh.full$Cluster.col_2
+          [match(`Site Name`, Datasheet_sh.full$`Site Name`)],
+          `Site Num` = rep(1:38,1))
+
+dat2$`Site Num`= factor(dat2$`Site Num`)
+dat2$`Site Num`=fct_reorder(dat2$`Site Num`,
+                           -dat2$Latitude)
+
+dat2 %>%
+  mutate (Ind=Human_indicators2$Disturbance
+          [match(variable,Human_indicators2$`Group (Taxa)`)])%>%
+  filter(Ind=="Yes") %>%
+  ggplot(aes(x=reorder(`Site Num`,desc(`Site Num`)), y=Count, fill= cluster.id))+
+  scale_fill_manual(values = Color_legend_cluster, guide=F)+
+  geom_bar(stat = "identity",colour="black")+
+  coord_flip()+
+  facet_wrap(~variable)+
+  theme_classic()+
+  theme(axis.text.x = element_text( hjust=1))+
+  labs(x="Record",
+       y="Number of time bins")
 
 #### FIGURE 7b (discarded, hard to read)------------------------------------------
 ## relative freq
@@ -2361,6 +2441,39 @@ Datasheet_sh.full<-rename(Datasheet_sh.full,"Sum_direct"="SUM")
 Datasheet_sh.full<- bind_cols(Datasheet_sh.full,DF_sh.Indirect.Sum)
 Datasheet_sh.full<-rename(Datasheet_sh.full,"Sum_indirect"="SUM")
 
+### same for disturbance indicators------------------------------------
+Disturbance<-Human_indicators2 %>% 
+  filter(Disturbance=="Yes") %>% 
+  select(`Group (Taxa)`)
+
+Disturbance<-as.vector(Disturbance$`Group (Taxa)`)
+
+Datasheet_sh.indicators2<-Datasheet_sh.indicators%>%
+  mutate(Charcoal=Datasheet_sh_charcoal$Charcoal)
+
+DF_sh.Disturbance<-Datasheet_sh.indicators2[,names(Datasheet_sh.indicators2) %in% Disturbance]
+
+DF_sh.Disturbance$Charcoal<-as.numeric(DF_sh.Disturbance$Charcoal)
+
+DF_sh.Disturbance.Sum<-data.frame(SUM=apply(DF_sh.Disturbance,1,FUN = function(x) sum(x,na.rm = T)))
+
+Datasheet_sh.dist.full<- bind_cols(Datasheet_shaved,
+                                  DF_sh.High.Sum,
+                                  DF_sh.Low.Sum,
+                                  DF_sh.No.Sum,
+                                  Datasheet_sh.full%>%
+                                    select(ForLabs))
+#add altitude to site name
+Datasheet_sh.pot.full$`Site Name`<-paste(Datasheet_sh.pot.full$`Site Name`,
+                                         "(",
+                                         Datasheet_sh.pot.full$Altitude,
+                                         "masl",
+                                         ")")
+
+# order sites by lat
+Datasheet_sh.pot.full$`Site Name`<-factor(Datasheet_sh.pot.full$`Site Name`)
+Datasheet_sh.pot.full$`Site Name`<-fct_reorder(Datasheet_sh.pot.full$`Site Name`,
+                                               -Datasheet_sh.full$Latitude)  
 #### analyses of potential food sources---------------
 
 High<-Human_indicators %>% 
@@ -2713,11 +2826,11 @@ Datasheet_sh.full.long$IND<-factor(Datasheet_sh.full.long$IND,
 
 
 #stacked bar chart, filled bars (easier to read)
-my_col_2<-c("#00BFC4", "#F8766D")
+my_col_2<-c("#FFFFFF","#DC143C")
 
 p<-ggplot(data=Datasheet_sh.full.long, 
           aes(x = reorder(Bin_num,-Bin_num),y=SUM,fill=IND))+
-  geom_bar(stat = "identity",width = 1)+
+  geom_bar(stat = "identity",width = 1, color="gray30")+
   geom_point(aes(x=reorder(Bin_num,-Bin_num),y=25),
              col=ifelse(Datasheet_sh.full.long$ForLabs=="H","orange","black"), pch=25 ,
              bg=ifelse(Datasheet_sh.full.long$ForLabs=="H","orange","black"), cex=0.7)+
@@ -2728,27 +2841,28 @@ p<-ggplot(data=Datasheet_sh.full.long,
   ylab("Absolute frequency")+
   xlab("Time bins")
 
-  
-p <- ggplot_gtable(ggplot_build(p))
-stripr <- which(grepl('strip-t', p$layout$name))
+# don't have enough RAM for this
 
-for (i in stripr) {
-  if (class(p$grobs[[i]]) != "zeroGrob"){
-    j <- which(grepl('rect', p$grobs[[i]]$grobs[[1]]$childrenOrder))
-    k <- which(grepl('title', p$grobs[[i]]$grobs[[1]]$childrenOrder))
+#p <- ggplot_gtable(ggplot_build(p))
+#stripr <- which(grepl('strip-t', p$layout$name))
+
+#for (i in stripr) {
+ # if (class(p$grobs[[i]]) != "zeroGrob"){
+  #  j <- which(grepl('rect', p$grobs[[i]]$grobs[[1]]$childrenOrder))
+   # k <- which(grepl('title', p$grobs[[i]]$grobs[[1]]$childrenOrder))
     
-    p$grobs[[i]]$grobs[[1]]$children[[j]]$gp$fill <- Sites %>% 
-      filter(`Site Name` == p$grobs[[i]]$grobs[[1]]$children[[k]]$children[[1]]$label) %>%
-      dplyr::select(cluster.color_2) %>%
-      pluck(1) %>%
-      as.character()
-  }
-}
+    #p$grobs[[i]]$grobs[[1]]$children[[j]]$gp$fill <- Sites %>% 
+     # filter(`Site Name` == p$grobs[[i]]$grobs[[1]]$children[[k]]$children[[1]]$label) %>%
+      #dplyr::select(cluster.color_2) %>%
+      #pluck(1) %>%
+      #as.character()
+  #}
+#}
 
-plot(p)
+#plot(p)
 
-ggsave("figures/To use/13.pdf",p,
-       units = "cm", width = 25, height = 20, dpi = 600)
+#ggsave("figures/To use/13.pdf",p,
+      # units = "cm", width = 25, height = 20, dpi = 600)
 
 g_1 <- grid.force(ggplotGrob(p))   #df to see the right path of text title
 grobs_df <- do.call(cbind.data.frame, grid.ls(g_1, print = FALSE)) 
@@ -2763,27 +2877,24 @@ strip_bg_gpath <- grobs_df$gPath_full[grepl(pattern = ".*strip\\.background.*", 
 strip_txt_gpath <- grobs_df$gPath_full[grepl(pattern = "strip.*titleGrob.*text.*", # Get the gPaths of the strip titles
                                              x = grobs_df$gPath_full)]
 
-fills <-  c(rep("#636363",17), # vector of colors to fill rectangles
-            rep("#BDBDBD",2),
-            rep("#636363",5),
-            rep( "#BDBDBD",7),
-            rep( "#F0F0F0",2),
-            rep( "#BDBDBD",5)) 
+fills <-  c(rep("#E78AC3",17), # vector of colors to fill rectangles
+            rep("#8DA0CB",1),
+            rep("#E78AC3",6),
+            rep("#FC8D62",3),
+            rep( "#8DA0CB",4),
+            rep( "#66C2A5",2),
+            rep("#FC8D62",5)) 
 
-txt_colors <- c(rep("white",17), # vector of colors for text
-                rep("black",2),
-                rep("white",5),
-                rep( "black",7),
-                rep( "black",2),
-                rep( "black",5))
 
 for (i in 1:length(strip_bg_gpath)){
   g_1 <- editGrob(grob = g_1, gPath = strip_bg_gpath[i], gp = gpar(fill = fills[i]))
-  g_1 <- editGrob(grob = g_1, gPath = strip_txt_gpath[i], gp = gpar(col = txt_colors[i]))
 } # Edit the grobs
 
 # add legend(extracted from FIG.2 5b_Col and  8b)
 grid.newpage()
+plot_grid(g_1)
+
+
 vp1 <- viewport(width = 0.75, height = 0.8, x = 0.4, y = .5)
 vplegC <- viewport(width = 0.25, height = 1, x = 0.9, y = 0.6)
 vplegL<- viewport(width = 0.25, height = 1, x = 0.9, y = 0.4)
@@ -2804,6 +2915,45 @@ grid.draw(legend_l)
 upViewport(0)
 pushViewport(vplegI)
 grid.draw(legend_di)
+
+# with disturbance indicators
+Datasheet_sh.full.long2<-Datasheet_sh.full.long2%>% 
+  mutate(ForLabs=Datasheet_sh.full$ForLabs)
+Datasheet_sh.full.long2$`Site Name`<-fct_reorder(Datasheet_sh.full.long2$`Site Name`,
+                                                 -Datasheet_sh.full.long2$Latitude)
+
+p<-ggplot(data=Datasheet_sh.full.long2,
+          aes(x = reorder(Bin_num,-Bin_num),y=SUM))+
+  geom_bar(stat = "identity",width = 1, color="gray30")+
+  geom_point(aes(x=reorder(Bin_num,-Bin_num),y=25),
+             col=ifelse(data$ForLabs=="H","orange","black"), pch=25 ,
+             bg=ifelse(data$ForLabs=="H","orange","black"), cex=0.7)+
+  facet_wrap(~`Site Name`)+
+  theme_classic()+
+  theme(axis.text.x = element_text(angle = 60, hjust=1))+
+  ylab("Absolute frequency")+
+  xlab("Time bins")
+
+p <- ggplot_gtable(ggplot_build(p))
+stripr <- which(grepl('strip-t', p$layout$name))
+
+for (i in stripr) {
+ if (class(p$grobs[[i]]) != "zeroGrob"){
+  j <- which(grepl('rect', p$grobs[[i]]$grobs[[1]]$childrenOrder))
+ k <- which(grepl('title', p$grobs[[i]]$grobs[[1]]$childrenOrder))
+
+p$grobs[[i]]$grobs[[1]]$children[[j]]$gp$fill <- Sites %>% 
+ filter(`Site Name` == p$grobs[[i]]$grobs[[1]]$children[[k]]$children[[1]]$label) %>%
+dplyr::select(cluster.color_2) %>%
+pluck(1) %>%
+as.character()
+}
+}
+
+plot(p)
+
+#ggsave("figures/To use/13.pdf",p,
+# units = "cm", width = 25, height = 20, dpi = 600)
 
 #### FIGURE 13_Col-----------------------------------------
 
@@ -3182,7 +3332,7 @@ p<-ggplot(data=Datasheet_sh.pot.full.long,
   ylab("Absolute frequency")+
   xlab("Time bins")+
   #scale_fill_discrete(breaks = c("High","Low"))+    #to produce legend for fig 7_H/L
-  scale_fill_manual(values=my_colors,guide=F)+
+  scale_fill_manual(values=my_colors_food,guide=F)+
   labs(fill="Indicator")+
   ggtitle("Cumulated number of different food potential indicators per bin")
 
@@ -3632,6 +3782,29 @@ BinsTot<-as.data.frame(table(Datasheet_sh.ind.time%>%
                                filter(ForLabs!="H")%>%
                                select(Bin_num)))
 
+BinsTot1<-as.data.frame(table(Datasheet_sh.ind.time%>%
+                               mutate(ForLabs=Datasheet_sh.full$ForLabs,
+                                      clust.id= Datasheet_shaved$cluster.id_2)%>%
+                               filter(ForLabs!="H"& clust.id==1)%>%
+                               select(Bin_num)))
+
+BinsTot2<-as.data.frame(table(Datasheet_sh.ind.time%>%
+                                mutate(ForLabs=Datasheet_sh.full$ForLabs,
+                                       clust.id= Datasheet_shaved$cluster.id_2)%>%
+                                filter(ForLabs!="H"& clust.id==2)%>%
+                                select(Bin_num)))
+
+BinsTot3<-as.data.frame(table(Datasheet_sh.ind.time%>%
+                                mutate(ForLabs=Datasheet_sh.full$ForLabs,
+                                       clust.id= Datasheet_shaved$cluster.id_2)%>%
+                                filter(ForLabs!="H"& clust.id==3)%>%
+                                select(Bin_num)))
+
+BinsTot4<-as.data.frame(table(Datasheet_sh.ind.time%>%
+                                mutate(ForLabs=Datasheet_sh.full$ForLabs,
+                                       clust.id= Datasheet_shaved$cluster.id_2)%>%
+                                filter(ForLabs!="H"& clust.id==4)%>%
+                                select(Bin_num)))
 #plot
 reshape2::melt(Datasheet_sh.ind.time, id= "Bin_num") %>%
   group_by(variable,Bin_num)%>%
@@ -3732,6 +3905,22 @@ Amap4<-ggmap (Andes2)+
    facet_wrap (~Bin_num)+
    theme_bw()
 
+### FIGURE 22_disturbance-----------------------------
+
+#new df
+Datasheet_sh.full.long2<-rbind(bind_cols(Datasheet_shaved,
+                                        DF_sh.Disturbance.Sum))
+                                       
+ggmap (Andes2)+
+  geom_point (data=Datasheet_sh.full.long,
+              aes(x= Longitude, y=Latitude, size= SUM, alpha = SUM == 0))+
+  scale_alpha_manual(values = c(0.3,0))+
+  scale_size_continuous(range = c(1,7),breaks = c(3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18))+
+  # scale_size_continuous(breaks=c(1,2,3))+
+  guides(alpha = FALSE)+
+  labs(size= "Number of indicators")+
+  facet_wrap (~Bin_num)+
+  theme_bw()                             
 
 ## FIGURE 23--------------------------------------------
 Bin=Datasheet_sh.full.long%>%
@@ -3748,10 +3937,72 @@ Datasheet_sh.full.long%>%
          Bin=Bin)%>%
   ggplot(aes(y=Rel, x=reorder(Bin,-Bin_num)))+
   geom_bar(stat = "identity")+
-  theme_bw()+
+  theme_classic()+
   theme(axis.text.x = element_text(angle = 60, hjust=1))+
   ylab("Relative frequency")+
   xlab("Time bins (yr BP)")
+
+## FIGURE 23B------------------------------------------
+a<-Datasheet_sh.full.long%>%
+  mutate(clust.id= Datasheet_shaved$cluster.id_2
+         [match(`Site Name long`, Datasheet_shaved$`Site Name long`)])%>%
+  filter(IND=="Direct" & clust.id==2)%>%
+  mutate(Pres=ifelse(SUM>0,1,0))%>%
+  group_by(Bin_num)%>%
+  summarise(Count=sum(Pres))%>%
+  mutate(Freq=BinsTot2$Freq[match(Bin_num,BinsTot2$Var1)])%>%
+  mutate(Rel=Count/Freq,
+         Bin=Bin)%>%
+  ggplot(aes(y=Rel, x=reorder(Bin,-Bin_num)))+
+  geom_bar(stat = "identity")+
+  theme_classic()+
+  theme(axis.text.x = element_text(angle = 60, hjust=1))+
+  ylab("Relative frequency")+
+  xlab("Time bins (yr BP)")
+
+b<-Datasheet_sh.full.long%>%
+  mutate(clust.id= Datasheet_shaved$cluster.id_2
+         [match(`Site Name long`, Datasheet_shaved$`Site Name long`)])%>%
+  filter(IND=="Direct" & clust.id==3)%>%
+  mutate(Pres=ifelse(SUM>0,1,0))%>%
+  group_by(Bin_num)%>%
+  summarise(Count=sum(Pres))%>%
+  mutate(Freq=BinsTot3$Freq[match(Bin_num,BinsTot3$Var1)])%>%
+  mutate(Rel=Count/Freq,
+         Bin=Bin)%>%
+  ggplot(aes(y=Rel, x=reorder(Bin,-Bin_num)))+
+  geom_bar(stat = "identity")+
+  theme_classic()+
+  theme(axis.text.x = element_text(angle = 60, hjust=1))+
+  ylab("Relative frequency")+
+  xlab("Time bins (yr BP)")
+
+c<-Datasheet_sh.full.long%>%
+  mutate(clust.id= Datasheet_shaved$cluster.id_2
+         [match(`Site Name long`, Datasheet_shaved$`Site Name long`)])%>%
+  filter(IND=="Direct" & clust.id==4)%>%
+  mutate(Pres=ifelse(SUM>0,1,0))%>%
+  group_by(Bin_num)%>%
+  summarise(Count=sum(Pres))%>%
+  mutate(Freq=BinsTot4$Freq[match(Bin_num,BinsTot4$Var1)])%>%
+  mutate(Rel=Count/Freq,
+         Bin=Bin)%>%
+  ggplot(aes(y=Rel, x=reorder(Bin,-Bin_num)))+
+  geom_bar(stat = "identity")+
+  theme_classic()+
+  theme(axis.text.x = element_text(angle = 60, hjust=1))+
+  ylab("Relative frequency")+
+  xlab("Time bins (yr BP)")
+
+ggarrange(
+  a+guides(color=F),
+  b+guides(color=F),
+  c+guides(color=F),
+  ncol = 1, align = "v", labels = c("Nothern Colombian Andes",
+                                    "Colombian inter-Andean dry valleys",
+                                    "Ecuadorean Andes")
+)
+
 ## FIGURE 24--------------------------------------------
 
 Datasheet_sh.pot.full.long%>%
@@ -3768,3 +4019,179 @@ Datasheet_sh.pot.full.long%>%
   theme(axis.text.x = element_text(angle = 60, hjust=1))+
   ylab("Relative frequency")+
   xlab("Time bins (yr BP)")
+
+## FUGURE 24B-----------------------------------------
+
+a<-Datasheet_sh.pot.full.long%>%
+  mutate(clust.id= Datasheet_shaved$cluster.id_2
+         [match(`Site Name long`, Datasheet_shaved$`Site Name long`)])%>%
+  filter(IND=="High" & clust.id==1)%>%
+  mutate(Pres=ifelse(SUM>0,1,0))%>%
+  group_by(Bin_num)%>%
+  summarise(Count=sum(Pres))%>%
+  mutate(Freq=BinsTot1$Freq[match(Bin_num,BinsTot1$Var1)])%>%
+  mutate(Rel=Count/Freq,
+         Bin=Bin)%>%
+  ggplot(aes(y=Rel, x=reorder(Bin,-Bin_num)))+
+  geom_bar(stat = "identity")+
+  theme_classic()+
+  theme(axis.text.x = element_text(angle = 60, hjust=1))+
+  ylab("Relative frequency")+
+  xlab("Time bins (yr BP)")
+
+b<-Datasheet_sh.pot.full.long%>%
+  mutate(clust.id= Datasheet_shaved$cluster.id_2
+         [match(`Site Name long`, Datasheet_shaved$`Site Name long`)])%>%
+  filter(IND=="High" & clust.id==2)%>%
+  mutate(Pres=ifelse(SUM>0,1,0))%>%
+  group_by(Bin_num)%>%
+  summarise(Count=sum(Pres))%>%
+  mutate(Freq=BinsTot2$Freq[match(Bin_num,BinsTot2$Var1)])%>%
+  mutate(Rel=Count/Freq,
+         Bin=Bin)%>%
+  ggplot(aes(y=Rel, x=reorder(Bin,-Bin_num)))+
+  geom_bar(stat = "identity")+
+  theme_classic()+
+  theme(axis.text.x = element_text(angle = 60, hjust=1))+
+  ylab("Relative frequency")+
+  xlab("Time bins (yr BP)")
+
+c<-Datasheet_sh.pot.full.long%>%
+  mutate(clust.id= Datasheet_shaved$cluster.id_2
+         [match(`Site Name long`, Datasheet_shaved$`Site Name long`)])%>%
+  filter(IND=="High" & clust.id==3)%>%
+  mutate(Pres=ifelse(SUM>0,1,0))%>%
+  group_by(Bin_num)%>%
+  summarise(Count=sum(Pres))%>%
+  mutate(Freq=BinsTot3$Freq[match(Bin_num,BinsTot3$Var1)])%>%
+  mutate(Rel=Count/Freq,
+         Bin=Bin)%>%
+  ggplot(aes(y=Rel, x=reorder(Bin,-Bin_num)))+
+  geom_bar(stat = "identity")+
+  theme_classic()+
+  theme(axis.text.x = element_text(angle = 60, hjust=1))+
+  ylab("Relative frequency")+
+  xlab("Time bins (yr BP)")
+
+d<-Datasheet_sh.pot.full.long%>%
+  mutate(clust.id= Datasheet_shaved$cluster.id_2
+         [match(`Site Name long`, Datasheet_shaved$`Site Name long`)])%>%
+  filter(IND=="High" & clust.id==4)%>%
+  mutate(Pres=ifelse(SUM>0,1,0))%>%
+  group_by(Bin_num)%>%
+  summarise(Count=sum(Pres))%>%
+  mutate(Freq=BinsTot4$Freq[match(Bin_num,BinsTot4$Var1)])%>%
+  mutate(Rel=Count/Freq,
+         Bin=Bin)%>%
+  ggplot(aes(y=Rel, x=reorder(Bin,-Bin_num)))+
+  geom_bar(stat = "identity")+
+  theme_classic()+
+  theme(axis.text.x = element_text(angle = 60, hjust=1))+
+  ylab("Relative frequency")+
+  xlab("Time bins (yr BP)")
+
+ggarrange(
+  a+guides(color=F),
+  b+guides(color=F),
+  c+guides(color=F),
+  d+guides(color=F),
+  ncol = 1, align = "v", labels = c("Southern Venezuelan Andes",
+                                    "Nothern Colombian Andes",
+                                    "Colombian inter-Andean dry valleys",
+                                    "Ecuadorean Andes")
+)
+
+#### FIGURE 25---------------------------------------------------
+Datasheet_sh.full.long2%>%
+  mutate(Pres=ifelse(SUM>0,1,0))%>%
+  group_by(Bin_num)%>%
+  summarise(Count=sum(Pres))%>%
+  mutate(Freq=BinsTot$Freq[match(Bin_num,BinsTot$Var1)])%>%
+  mutate(Rel=Count/Freq,
+         Bin=Bin)%>%
+  ggplot(aes(y=Rel, x=reorder(Bin,-Bin_num)))+
+  geom_bar(stat = "identity")+
+  theme_classic()+
+  theme(axis.text.x = element_text(angle = 60, hjust=1))+
+  ylab("Relative frequency")+
+  xlab("Time bins (yr BP)")
+
+### FIGURE 25---------------------------------------------------
+a<-Datasheet_sh.full.long2%>%
+  mutate(clust.id= Datasheet_shaved$cluster.id_2
+         [match(`Site Name long`, Datasheet_shaved$`Site Name long`)])%>%
+  filter(clust.id==1)%>%
+  mutate(Pres=ifelse(SUM>0,1,0))%>%
+  group_by(Bin_num)%>%
+  summarise(Count=sum(Pres))%>%
+  mutate(Freq=BinsTot1$Freq[match(Bin_num,BinsTot1$Var1)])%>%
+  mutate(Rel=Count/Freq,
+         Bin=Bin)%>%
+  ggplot(aes(y=Rel, x=reorder(Bin,-Bin_num)))+
+  geom_bar(stat = "identity")+
+  theme_classic()+
+  theme(axis.text.x = element_text(angle = 60, hjust=1))+
+  ylab("Relative frequency")+
+  xlab("Time bins (yr BP)")
+
+b<-Datasheet_sh.full.long2%>%
+  mutate(clust.id= Datasheet_shaved$cluster.id_2
+         [match(`Site Name long`, Datasheet_shaved$`Site Name long`)])%>%
+  filter(clust.id==2)%>%
+  mutate(Pres=ifelse(SUM>0,1,0))%>%
+  group_by(Bin_num)%>%
+  summarise(Count=sum(Pres))%>%
+  mutate(Freq=BinsTot2$Freq[match(Bin_num,BinsTot2$Var1)])%>%
+  mutate(Rel=Count/Freq,
+         Bin=Bin)%>%
+  ggplot(aes(y=Rel, x=reorder(Bin,-Bin_num)))+
+  geom_bar(stat = "identity")+
+  theme_classic()+
+  theme(axis.text.x = element_text(angle = 60, hjust=1))+
+  ylab("Relative frequency")+
+  xlab("Time bins (yr BP)")
+
+c<-Datasheet_sh.full.long2%>%
+  mutate(clust.id= Datasheet_shaved$cluster.id_2
+         [match(`Site Name long`, Datasheet_shaved$`Site Name long`)])%>%
+  filter(clust.id==3)%>%
+  mutate(Pres=ifelse(SUM>0,1,0))%>%
+  group_by(Bin_num)%>%
+  summarise(Count=sum(Pres))%>%
+  mutate(Freq=BinsTot3$Freq[match(Bin_num,BinsTot3$Var1)])%>%
+  mutate(Rel=Count/Freq,
+         Bin=Bin)%>%
+  ggplot(aes(y=Rel, x=reorder(Bin,-Bin_num)))+
+  geom_bar(stat = "identity")+
+  theme_classic()+
+  theme(axis.text.x = element_text(angle = 60, hjust=1))+
+  ylab("Relative frequency")+
+  xlab("Time bins (yr BP)")
+
+d<-Datasheet_sh.pot.full.long%>%
+  mutate(clust.id= Datasheet_shaved$cluster.id_2
+         [match(`Site Name long`, Datasheet_shaved$`Site Name long`)])%>%
+  filter(clust.id==4)%>%
+  mutate(Pres=ifelse(SUM>0,1,0))%>%
+  group_by(Bin_num)%>%
+  summarise(Count=sum(Pres))%>%
+  mutate(Freq=BinsTot4$Freq[match(Bin_num,BinsTot4$Var1)])%>%
+  mutate(Rel=Count/Freq,
+         Bin=Bin)%>%
+  ggplot(aes(y=Rel, x=reorder(Bin,-Bin_num)))+
+  geom_bar(stat = "identity")+
+  theme_classic()+
+  theme(axis.text.x = element_text(angle = 60, hjust=1))+
+  ylab("Relative frequency")+
+  xlab("Time bins (yr BP)")
+
+ggarrange(
+  a+guides(color=F),
+  b+guides(color=F),
+  c+guides(color=F),
+  d+guides(color=F),
+  ncol = 1, align = "v", labels = c("Southern Venezuelan Andes",
+                                    "Nothern Colombian Andes",
+                                    "Colombian inter-Andean dry valleys",
+                                    "Ecuadorean Andes")
+)
