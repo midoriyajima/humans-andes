@@ -125,7 +125,13 @@ View(Datasheet_sh.full.long%>%
                 "Zea mays",
                 "Site Name",
                 "SUM",
-                "Bin")))
+                "Bin",
+                "Site_num")))
+
+View (Datasheet_sh.full.long%>%
+       filter(ForLabs == "H"))%>%
+  distinct(c("Site_num",
+             "Bin"))
 
 Datasheet_sh.full.long%>%
   mutate(clust.id= Datasheet_shaved$cluster.id_2
@@ -192,3 +198,25 @@ dat%>%
   filter(Pot=="high")%>%
   mutate(Pres=ifelse(Count>0,1,0))%>%
   summarise(Count=sum(Pres))
+
+# disturbance
+dat2 %>%
+  mutate (Ind=Human_indicators2$Disturbance
+          [match(variable,Human_indicators2$`Group (Taxa)`)])%>%
+  filter(Ind=="Yes")%>%
+  mutate(Pres=ifelse(Count>0,1,0))%>%
+  summarise(Count=sum(Pres))
+
+View(Datasheet_sh.dist.full%>%
+  filter(Bin=="11500-12000 BP" & SUM !=0)%>%
+  select("Acalypha", "Alchornea", "Alnus",
+         "Amaranthceae/ Chenopodiaceae (Ama/Cheno)", "Anthoceros",                              
+         "Asteraceae" , "Borreria", "Brassicaceae", "Cecropia", 
+         "Charcoal","Cyatheaceae", "Cyperaceae", "Dodonea", "Gelasinospora",
+         "Gramineae/Poaceae", "Grammitis", "Juncaceae", "Lupinus",
+         "Myrica (Morella)", "Piperaceae", "Pteridaceae", "Rumex", "Spermacoce",
+         "Typhaceae", "Umbelliferae/Apiaceae","Fabaceae/Leguminosa",
+         "Site Name",
+         "SUM",
+         "Bin_num"))
+       

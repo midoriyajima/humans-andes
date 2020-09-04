@@ -85,12 +85,27 @@ Sites_2<-read_excel("data/Sites_2.xlsx")
 cca.env <- cca.env %>%
   left_join(Sites_2, by= "Site Name")
 
+cca.env<- cca.env %>% 
+  mutate(siteNameLong= Datasheet_shaved$`Site Name long`
+         [match(`Site Name`, Datasheet_shaved$`Site Name`)],
+         site_num= dat$`Site Num`
+         [match(siteNameLong, dat$SiteNameLong)])
+
+cca.env$site_num<-paste(cca.env$site_num,
+                                       "(",
+                                       cca.env$Altitude,
+                                       "masl",
+                                       ")")
+
 cca.env<- cca.env %>%
   group_by(`Site Name`) %>%
   mutate(ORDER = mean(as.double(ZONE)*mean(Bin_num), na.rm = T))
 
 cca.env$`Site Name` <- as.factor(cca.env$`Site Name`)
 cca.env$`Site Name`<- reorder(cca.env$`Site Name` , cca.env$Latitude)
+
+cca.env$site_num <- as.factor(cca.env$site_num)
+cca.env$site_num<- reorder(cca.env$site_num , cca.env$Latitude)
 
 
 # --------------------------------------------------------------- 
@@ -100,13 +115,16 @@ cca.env$`Site Name`<- reorder(cca.env$`Site Name` , cca.env$Latitude)
 # showing changes in the "zones" which are based on the presence of indicatzors
 # the colors are base on the clustering
 
-cca.env %>%
-  ggplot(aes(x=Bin_num,y=`Site Name`))+
+p.cca<-cca.env %>%
+  ggplot(aes(x=-Bin_num,y= site_num))+
   geom_line(color="gray80")+
   geom_point(aes(shape= ZONE),color=cca.env$cluster.color_2, size=6)+
   scale_shape_manual(values = c(1,15))+
   theme_classic()+
-  labs(x="Age",
+  labs(x="Age(cal yr BP)",
        y="Site")+ 
   theme(legend.position = "none")
+
+ggsave("figures/To use/28.pdf",p.cca,
+       units = "cm", width = 25, height = 20, dpi = 600)
 
